@@ -19,6 +19,7 @@
 | 06 | [Security Strategy](06-security.md) | Authentication, authorization, OWASP controls, file uploads, secrets, audit logging, backup and recovery |
 | 07 | [Milestones & Acceptance Criteria](07-milestones.md) | Phase 2–10 deliverables, definition of done, acceptance criteria |
 | 08 | [Risks, Decisions & Open Questions](08-open-questions.md) | Technical decisions that need approval, business rules that need confirmation, gaps, risks |
+| 09 | [Report Card Layout (proposal)](09-report-card-layout.md) | Proposed standard Mid Term and Final Term report card layout. **Pending approval (Q-E6)** |
 
 ## Approved baseline (from the project brief)
 

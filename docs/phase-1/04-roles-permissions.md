@@ -80,6 +80,7 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | PASS/FAIL and promotion/repetition outcome: view | — | R | R | R | S (R) |
 | PASS/FAIL and promotion/repetition outcome: approve or override | — | — (automatic, C-06) | — (automatic) | — | — |
 | Grade levels & sections | — | F | F | R | S (R) |
+| Configure next grade level and the final (highest) grade flag | — | F | R | — | — |
 | Subjects & teaching assignments | — | F | F | — | S (R) |
 | Timetable | — | F | F | — | S (R, own) |
 | Students: view | — | F | F | R (basic) | S (R) |

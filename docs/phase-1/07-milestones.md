@@ -86,7 +86,10 @@ A phase is complete only when **all** of the following hold:
   - EXEMPT subjects are excluded from both totals. ABSENT counts as 0/100 and is included: marks 67.5, 55 and one ABSENT give 122.5/300 = 40.83% → FAIL.
   - Mid Term shows "no PASS/FAIL decision". A student below 50% overall in Mid Term but ≥ 50% overall in Final Term is PASS, and the reverse is FAIL.
 - **Automatic outcome (C-06):** publishing Final Term sets PROMOTED for every PASS and REPEAT GRADE for every FAIL, with no approval step. Outcomes appear on the student profile, the rollover preview and the Final Term report card. No role can override them: tests assert that the API has no endpoint for it and that attempts are rejected. Correcting Final Term marks through unlock → re-publish recalculates the outcome, audit-logged.
-- **Graduation (C-09):** in the highest grade (no next grade level), PASS → GRADUATED, with no next-year enrolment and student status GRADUATED after rollover; no attempt is made to promote to a non-existent grade. FAIL in the highest grade → REPEAT GRADE.
+- **Graduation (C-09):**
+  - In the grade level explicitly marked `is_final_grade`, PASS → GRADUATED, with no next-year enrolment and student status GRADUATED after rollover. FAIL → REPEAT GRADE.
+  - **Negative case:** a grade level with no next grade that is **not** marked final never produces GRADUATED. Publishing its Final Term is rejected with `GRADE_PROGRESSION_NOT_CONFIGURED`, naming the grade level.
+  - Marking a second grade level as final, or setting a next grade on the final grade, is rejected.
 - **Late joiners (C-10):**
   - A student first enrolled after the first Final Term paper date is absent from the mark-entry grid and gets no ABSENT and no result. They receive PENDING PLACEMENT.
   - Only the School Admin can resolve it (Principal, Accountant and Teacher get 403). The reason is mandatory, and the audit log records decision, reason, user and date.
