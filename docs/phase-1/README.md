@@ -33,7 +33,8 @@
 | Grading scale | 91–100 A+, 85–90 A-, 80–84 B+, 75–79 B, 70–74 C+, 65–69 C, 60–64 D+, 50–59 D, 0–49 F. One exam per subject per term out of 100. Final Term ≥ 50 = PASS (confirmed, C-03) |
 | PASS/FAIL | Overall Final Term percentage across all subjects (total obtained ÷ total possible × 100), exact, no rounding: ≥ 50% PASS, < 50% FAIL. One failed subject does not fail the student (confirmed, C-05) |
 | Promotion | Automatic: PASS → next grade, FAIL → repeat the same grade; no approval; outcome recorded and displayed. Mid Term does not decide promotion (confirmed, C-06) |
-| Exam absence policy | School Admin selects one of two options (ZERO / EXCLUDE, definitions to confirm) before the year's exams. Locked once exams start, fully locked after publication; changes only via audited correction and republication (confirmed, C-07) |
+| Exam absence | ABSENT = automatic 0/100, included in the overall percentage; grades and PASS/FAIL calculated normally; no option to choose another policy (confirmed, C-07 revised) |
+| Marks | Decimals allowed, e.g. 67.5, 78.5, 90.5 (confirmed, C-08) |
 | Users (v1) | Staff only. Parents and students have no login. |
 | Roles | Platform Super Admin, School Admin, Principal, Accountant, Teacher |
 | Backend | Node.js + Express.js + TypeScript |

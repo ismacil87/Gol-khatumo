@@ -88,7 +88,7 @@ flowchart TD
 stateDiagram-v2
   [*] --> Planning: Create academic year (Mid Term + Final Term created automatically)
   Planning --> Setup: Term dates, sections, curriculum, teaching assignments, fee structures, timetable
-  Setup --> MidTerm: Set as current year · enrol / promote students · set billing status · School Admin selects absence policy (locks when exams start)
+  Setup --> MidTerm: Set as current year · enrol / promote students · set billing status
   state MidTerm {
     [*] --> MT_Run
     MT_Run: Mid Term — attendance · Mid Term fee charges · payments · Mid Term exams → marks

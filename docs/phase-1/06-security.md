@@ -65,7 +65,7 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 - Per-school data export, and a documented deletion procedure on offboarding.
 
 ## 8. Audit logging
-**Audited operations (minimum):** login success/failure, logout, password change/reset, MFA changes, user create/deactivate/role change, school create/suspend, support sessions, settings changes, student create/status change/transfer/delete-attempt, billing status changes, charge generation runs, waivers, discounts, payment create/void/refund, expense approve/void, exam lock/publish/unlock, automatic end-of-year outcomes (system actor), examination absence policy selection, changes and corrections (previous policy, new policy, reason, authorised user, date), result republication, mark changes after lock, attendance edits after lock, imports committed, bulk exports of personal data, permission-denied events (sampled).
+**Audited operations (minimum):** login success/failure, logout, password change/reset, MFA changes, user create/deactivate/role change, school create/suspend, support sessions, settings changes, student create/status change/transfer/delete-attempt, billing status changes, charge generation runs, waivers, discounts, payment create/void/refund, expense approve/void, exam lock/publish/unlock, automatic end-of-year outcomes (system actor), result re-publication (including changes to ABSENT statuses), mark changes after lock, attendance edits after lock, imports committed, bulk exports of personal data, permission-denied events (sampled).
 
 **Record contents:** actor, role, school, support session (if any), action, entity, before/after (redacted), reason, IP, user agent, request ID, timestamp.
 

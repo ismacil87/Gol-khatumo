@@ -74,7 +74,7 @@ A phase is complete only when **all** of the following hold:
 - Rollover is available only after Final Term results are published (stubbed until Phase 6). The preview shows each student's automatic outcome (PROMOTED → next grade level, REPEAT GRADE → same grade level, GRADUATED). The outcomes cannot be edited in the preview or through the API. Commit creates next-year enrolments accordingly, and re-running the commit does nothing.
 
 ### Phase 6 — Examinations & results
-**Deliverables:** official grading scale (seeded, read-only), examination absence policy (selection, lock, correction and republication flow, history), one examination per term with one paper per subject out of 100, lifecycle (draft → publish, unlock), mark entry grid (autosave, progress), marks computation, independent Mid Term and Final Term results (each out of 100%), rankings with tie rules, result snapshots, report card remarks, Mid Term and Final Term report card PDFs (first version), exam schedule per term, mark sheet/broadsheet.
+**Deliverables:** official grading scale (seeded, read-only), fixed absence rule (ABSENT = 0/100), decimal marks, one examination per term with one paper per subject out of 100, lifecycle (draft → publish, unlock), mark entry grid (autosave, progress), marks computation, independent Mid Term and Final Term results (each out of 100%), rankings with tie rules, result snapshots, report card remarks, Mid Term and Final Term report card PDFs (first version), exam schedule per term, mark sheet/broadsheet.
 
 **Acceptance criteria**
 - Every exam belongs to Mid Term or Final Term, and paper dates outside that term are rejected. A second examination in the same term, a second paper for the same grade level and subject, or maximum marks other than 100 are rejected.
@@ -83,21 +83,22 @@ A phase is complete only when **all** of the following hold:
   - Marks 40, 60, 55 → 155/300 = 51.666…% (shown 51.66%) → **PASS**, even though one subject is F (the subject still shows grade F).
   - Marks 45, 50, 54 → 149/300 = 49.666…% (shown 49.66%) → **FAIL**.
   - 7 subjects, 350/700 = 50.00% → **PASS**; 349/700 = 49.857…% → **FAIL**, displayed as 49.85% (truncated), never as 50%.
-  - EXEMPT subjects are excluded from both totals. ABSENT follows the year's absence policy: marks 60, 55 and one ABSENT give 115/300 = 38.33% → FAIL under ZERO, and 115/200 = 57.50% → PASS under EXCLUDE.
+  - EXEMPT subjects are excluded from both totals. ABSENT counts as 0/100 and is included: marks 67.5, 55 and one ABSENT give 122.5/300 = 40.83% → FAIL.
   - Mid Term shows "no PASS/FAIL decision". A student below 50% overall in Mid Term but ≥ 50% overall in Final Term is PASS, and the reverse is FAIL.
 - **Automatic outcome (C-06):** publishing Final Term sets PROMOTED for every PASS and REPEAT GRADE for every FAIL (GRADUATED in the highest grade, per Q-E10), with no approval step. Outcomes appear on the student profile, the rollover preview and the Final Term report card. No role can override them: tests assert that the API has no endpoint for it and that attempts are rejected. Correcting Final Term marks through unlock → re-publish recalculates the outcome, audit-logged.
 - The grading scale is read-only in v1. Any attempt to edit it is rejected, and published snapshots record the scale version.
 - Publishing Mid Term produces Mid Term results, grades and ranks. Publishing Final Term produces Final Term results, grades and ranks. Each is calculated independently on a 100% scale and matches hand-calculated fixtures.
 - No subject term mark can exceed 100, and the overall term percentage is between 0 and 100.
 - **No annual result is produced:** tests assert that no combined or weighted annual percentage, grade or rank is calculated, stored, returned by the API or printed, and that the Final Term result is never labelled as an annual result. The annual result policy is fixed to `NONE`, and attempts to set another mode are rejected.
-- Marks outside 0–100 are rejected. EXEMPT is excluded from both totals; ABSENT follows the selected absence policy.
-- **Absence policy lock (C-07):**
-  - With no policy selected for the year, opening a Mid Term or Final Term exam for marks entry is rejected.
-  - Before examinations start, the School Admin can select or change the policy, and each change records previous policy, new policy, reason, user and date. Principal, Accountant and Teacher are rejected (403).
-  - After the first exam enters marks entry, or its first paper date arrives, an ordinary change is rejected (409 `ABSENCE_POLICY_LOCKED`).
-  - After Mid Term (or Final Term) is published, that period's snapshots keep the policy option and version they were calculated with. Any change that bypasses the correction process is rejected.
-  - **Correction flow:** without a reason → rejected. With a reason → the affected periods are recalculated and republished as `result_version + 1`; the previous version remains readable in history; Final Term outcomes are recalculated (including next-year enrolments if rollover has run); notifications are sent; the audit log holds previous policy, new policy, reason, authorised user and date.
-  - **No silent recalculation:** tests run every other write path (settings updates, grading-scale access, imports, background jobs, mark edits on a published exam) and assert that published snapshots are byte-for-byte unchanged.
+- **Decimal marks (C-08):** 67.5, 78.5 and 90.5 are accepted and stored exactly. -0.5, 100.5 and 67.555 (three decimal places) are rejected. Subject grades with decimals: 90.5 → A-, 84.5 → B+, 64.5 → D+, 49.5 → F. Overall: 67.5 + 78.5 + 90.5 = 236.5/300 = 78.83% → B, PASS.
+- **Absence rule (C-07):**
+  - Recording ABSENT stores score 0 automatically. Sending a non-zero score with ABSENT is rejected.
+  - ABSENT is included in both totals (0 obtained, 100 possible). The subject grade is F, and the overall grade, ranking, Final Term PASS/FAIL and outcome are calculated normally.
+  - A student absent from every Final Term subject gets 0% → FAIL → repeat grade.
+  - EXEMPT is excluded from both totals.
+  - No API endpoint, setting or permission exists for choosing an absence policy (tests assert this).
+  - Report cards and mark sheets show "ABSENT – 0/100".
+  - Changing an ABSENT status on a published exam requires unlock → re-publish. The previous result version stays readable, and tests assert that no other write path changes published snapshots.
 - Teachers can enter marks only for assigned subject × section, and only during MARKS_ENTRY.
 - Publishing produces snapshots. Editing marks afterwards requires unlock (audited) and re-publish. Published ranks never change silently.
 - Ranking tests cover ties (1, 2, 2, 4), missing marks and exempt subjects, using fixtures with hand-calculated expected results.
