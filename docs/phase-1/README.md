@@ -30,6 +30,7 @@
 | Languages | Somali and English, with a language switcher |
 | Academic structure | Two **terms** per academic year (not semesters): **Mid Term** and **Final Term** (confirmed, C-01) |
 | Grading | Mid Term and Final Term each calculated independently out of 100%, shown separately; no combined annual result (confirmed, C-02) |
+| Grading scale | 91–100 A+, 85–90 A-, 80–84 B+, 75–79 B, 70–74 C+, 65–69 C, 60–64 D+, 50–59 D, 0–49 F. One exam per subject per term out of 100. Final Term ≥ 50 = PASS (confirmed, C-03) |
 | Users (v1) | Staff only. Parents and students have no login. |
 | Roles | Platform Super Admin, School Admin, Principal, Accountant, Teacher |
 | Backend | Node.js + Express.js + TypeScript |

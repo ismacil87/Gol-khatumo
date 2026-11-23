@@ -46,6 +46,7 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
 | Student attendance | `attendance.read`, `attendance.take`, `attendance.edit_locked` |
 | Staff attendance | `staff_attendance.read`, `staff_attendance.record`, `staff_leave.approve` |
 | Exams | `exams.read`, `exams.manage`, `exams.lock`, `exams.publish`, `exams.unlock` |
+| Grading scale | `grading.scale.read`; `grading.scale.manage` (reserved for future editing by an authorised administrator, inactive in v1: the official scale is read-only) |
 | Marks/results | `marks.read`, `marks.enter`, `marks.import`, `results.read`, `rankings.read`, `results.annual_policy.manage` (reserved for the future annual result policy, School Admin only, inactive in v1) |
 | Report cards | `report_cards.generate`, `report_cards.remarks.manage` |
 | Fees | `fees.structures.read`, `fees.structures.manage`, `fees.charges.generate`, `fees.charges.adhoc`, `fees.charges.waive.request`, `fees.charges.waive.approve`, `fees.discounts.manage` |
@@ -92,6 +93,8 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Marks entry | — | F | F | — | S |
 | Marks import (Excel) | — | F | F | — | S |
 | Results, rankings | — | F | F | — | S (R) |
+| Grading scale: view | — | R | R | — | R |
+| Grading scale: edit | — | — (reserved, future) | — | — | — |
 | Report cards: generate | — | F | F | — | S (own sections) |
 | Report card remarks | — | F | F (principal) | — | S (class teacher) |
 | Fee categories & structures | — | F | R | F | — |

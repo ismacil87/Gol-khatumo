@@ -14,8 +14,8 @@
 | 8 | **Timetable** | Bell schedule and weekly timetables with conflict detection | PeriodDefinition, TimetableEntry | 6, 7 | 5 |
 | 9 | **Student Attendance** | Daily attendance per section | AttendanceSession, StudentAttendance | 3, 6, 7 (teacher scope), 2 (calendar) | 5 |
 | 10 | **Teacher Attendance** | Staff daily attendance and leave | StaffAttendance, StaffLeave | 5, 2 | 5 |
-| 11 | **Examination** | Exam types, exams, papers, schedule, lifecycle, grading scales | ExamType, Exam, ExamPaper, GradingScale, GradeBand | 2, 6, 7 | 6 |
-| 12 | **Marks & Results** | Mark entry and computation of totals, grades, pass/fail; Mid Term and Final Term results, each independent and out of 100% (no combined annual result in v1) | Mark, ResultSnapshot | 11, 3 | 6 |
+| 11 | **Examination** | One examination per term (Mid Term, Final Term) with one paper per subject out of 100, schedule, lifecycle, official grading scale (read-only in v1) | Exam, ExamPaper, GradingScale, GradeBand | 2, 6, 7 | 6 |
+| 12 | **Marks & Results** | Mark entry and automatic computation of percentages and letter grades; Mid Term and Final Term results, each independent and out of 100%; automatic PASS/FAIL from the Final Term result (no combined annual result in v1) | Mark, ResultSnapshot | 11, 3 | 6 |
 | 13 | **Student Ranking** | Section and grade ranks per exam and per term (Mid Term, Final Term), top-N lists | (part of ResultSnapshot) | 12 | 6 |
 | 14 | **Report Cards** | Official Mid Term and Final Term report card PDFs with remarks; both term results shown separately | ReportCardRemark | 12, 13, 9 (attendance summary), PDF engine | 6 (+ PDF polish in 9) |
 | 15 | **Fees & Fee Structures** | Fee categories, structures per grade/year, charge generation, discounts, waivers | FeeCategory, FeeStructure, FeeStructureItem, ChargeRun, FeeCharge, StudentDiscount, ChargeAdjustment | 2, 3, 6, 17 | 7 |

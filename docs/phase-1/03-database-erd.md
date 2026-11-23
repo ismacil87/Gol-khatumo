@@ -439,11 +439,9 @@ Uniqueness: `(school_id, section_id, date)` on attendance sessions; `(school_id,
 
 ```mermaid
 erDiagram
-  SCHOOL ||--o{ EXAM_TYPE : "defines"
   SCHOOL ||--o{ GRADING_SCALE : "defines"
   GRADING_SCALE ||--o{ GRADE_BAND : "bands"
-  TERM ||--o{ EXAM : "holds"
-  EXAM_TYPE ||--o{ EXAM : "classifies"
+  TERM ||--|| EXAM : "one examination per term (v1)"
   GRADING_SCALE ||--o{ EXAM : "graded by"
   EXAM ||--o{ EXAM_PAPER : "consists of"
   GRADE_LEVEL ||--o{ EXAM_PAPER : "for"
@@ -454,23 +452,16 @@ erDiagram
   ENROLLMENT ||--o{ RESULT_SNAPSHOT : "for"
   ENROLLMENT ||--o{ REPORT_CARD_REMARK : "remarks"
   TERM ||--o{ RESULT_SNAPSHOT : "term results"
+  GRADING_SCALE ||--o{ RESULT_SNAPSHOT : "graded with (version kept)"
   ACADEMIC_YEAR ||--o| ANNUAL_RESULT_POLICY : "reserved, mode NONE in v1"
   TERM ||--o{ REPORT_CARD_REMARK : "per term"
 
-  EXAM_TYPE {
-    string id PK
-    string name_so
-    string name_en
-    decimal default_weight "share of the term 100 marks (within one term only)"
-  }
   EXAM {
     string id PK
-    string term_id FK "Mid Term or Final Term"
-    string exam_type_id FK
+    string term_id FK "Mid Term or Final Term; unique per term"
     string grading_scale_id FK
-    string name_so
+    string name_so "Mid Term Examination | Final Term Examination"
     string name_en
-    decimal weight
     string status "DRAFT|SCHEDULED|MARKS_ENTRY|LOCKED|PUBLISHED"
     datetime marks_deadline
     datetime published_at
@@ -481,34 +472,37 @@ erDiagram
     string exam_id FK
     string grade_level_id FK
     string subject_id FK
-    decimal max_marks
-    decimal pass_marks
+    decimal max_marks "fixed 100 in v1"
     date exam_date
   }
   MARK {
     string id PK
     string exam_paper_id FK
     string enrollment_id FK
-    decimal score "nullable"
+    decimal score "0-100, nullable"
     string entry_status "SCORED|ABSENT|EXEMPT"
     string entered_by_id FK
     datetime entered_at
   }
   GRADING_SCALE {
     string id PK
-    string name
+    string name "GKS Official Grading Scale"
+    int version "1"
+    decimal pass_threshold "50, applied to Final Term only"
     boolean is_default
+    boolean is_editable "false in v1"
+    string status "ACTIVE|ARCHIVED"
   }
   GRADE_BAND {
     string id PK
     string grading_scale_id FK
-    decimal min_percent
-    decimal max_percent
-    string grade "A+"
-    string remark_so
-    string remark_en
-    decimal grade_point
-    boolean is_pass
+    decimal min_percent "inclusive lower bound"
+    decimal max_percent "display upper bound"
+    string grade "A+|A-|B+|B|C+|C|D+|D|F"
+    int display_order
+    string remark_so "optional, empty in v1"
+    string remark_en "optional, empty in v1"
+    decimal grade_point "optional, empty in v1"
   }
   RESULT_SNAPSHOT {
     string id PK
@@ -519,12 +513,14 @@ erDiagram
     decimal total_score
     decimal total_max
     decimal percentage "0-100, term result"
-    string grade "term grade"
+    string grade "overall term letter grade"
     int rank_in_section
     int rank_in_grade
     int section_size
-    boolean passed
-    json subject_breakdown "per subject: term mark out of 100, grade, pass"
+    string result_status "PASS|FAIL (Final Term) or NOT_APPLICABLE (Mid Term)"
+    string grading_scale_id FK
+    int grading_scale_version
+    json subject_breakdown "per subject: mark out of 100, percentage, letter grade"
     datetime computed_at
   }
   ANNUAL_RESULT_POLICY {
@@ -548,6 +544,10 @@ erDiagram
 
 Rules:
 - `UNIQUE (school_id, exam_paper_id, enrollment_id)` on marks.
+- **One examination per term (v1):** `UNIQUE (school_id, term_id)` on `exam`; `UNIQUE (school_id, exam_id, grade_level_id, subject_id)` on `exam_paper`; `max_marks = 100` (check constraint); `0 ≤ score ≤ 100` (check constraint).
+- **Official grading scale (seeded, C-03):** `grading_scale` "GKS Official Grading Scale" v1, `pass_threshold = 50`, `is_editable = false`, with `grade_band` rows (min → grade): 91 A+, 85 A-, 80 B+, 75 B, 70 C+, 65 C, 60 D+, 50 D, 0 F. The grade is the band with the highest `min_percent` ≤ the percentage (see Requirements §1.8 GS-3 and Q-E8 for non-whole percentages).
+- **Result status:** for the Final Term snapshot, `result_status = PASS` if `percentage ≥ pass_threshold`, otherwise `FAIL`. For the Mid Term snapshot, `result_status = NOT_APPLICABLE`. The Mid Term snapshot never affects the Final Term status.
+- Snapshots store `grading_scale_id` and `grading_scale_version`, so a future scale change never alters published grades.
 - Every exam belongs to exactly one term (Mid Term or Final Term), and its paper dates must fall inside that term.
 - Result levels in v1: **EXAM** → **TERM**. The Mid Term result and the Final Term result are each calculated independently on a 100% scale: every subject's term mark is out of 100 (`total_max` = 100 × counted subjects), and the grading scale is applied per term. Ranks are computed per exam and per term.
 - **No YEAR (annual) snapshot is produced in v1.** The `YEAR` scope value and `annual_result_policy` are reserved for a possible future, formally approved annual calculation. In v1 the service rejects any policy mode other than `NONE`, and no code path combines Mid Term and Final Term or uses the Final Term result as an annual result.
@@ -917,10 +917,10 @@ erDiagram
 - Every tenant table: `INDEX (school_id, <most common filter>)`, e.g. `students (school_id, status, last_name)`, `fee_charges (school_id, enrollment_id, status)`, `payments (school_id, paid_on)`, `student_attendance (school_id, date)`.
 - Name search: a generated column `search_name` (concatenated, lower-cased) with an index, which supports prefix search. FULLTEXT is used only if needed.
 - Reporting queries (outstanding by class, collection by month) use covering indexes. Heavy reports can later read from a replica.
-- Expected volume per school per year (3,000 students): attendance ≈ 3,000 × 200 days = 600k rows; marks ≈ 3,000 × 10 subjects × 4 exams = 120k rows; charges ≈ 3,000 × 12 months = 36k rows. Across 100 schools this is comfortable for a single MySQL primary with proper indexing. Attendance is the table to watch; partitioning by year is an option later.
+- Expected volume per school per year (3,000 students): attendance ≈ 3,000 × 200 days = 600k rows; marks ≈ 3,000 × 10 subjects × 2 exams (Mid Term, Final Term) = 60k rows; charges ≈ 3,000 × 12 months = 36k rows. Across 100 schools this is comfortable for a single MySQL primary with proper indexing. Attendance is the table to watch; partitioning by year is an option later.
 
 ## 12. Migration & seeding strategy
 - `prisma migrate dev` locally; `prisma migrate deploy` in CI/CD. Migrations are committed and code-reviewed, and destructive changes follow expand → migrate → contract.
-- **Seed (all environments):** permission catalogue, system roles with default permissions, system finance categories, default grading scale template.
+- **Seed (all environments):** permission catalogue, system roles with default permissions, system finance categories, and the **official grading scale** (C-03) for each school.
 - **Seed (dev/staging only):** a demo school with synthetic students, staff and marks, for testing and UAT.
 - **Data migration from existing records:** via the Excel import pipeline (students, guardians, staff, opening balances). No direct SQL loading of production data.

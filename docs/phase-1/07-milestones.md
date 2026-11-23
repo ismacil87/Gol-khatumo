@@ -23,7 +23,7 @@ A phase is complete only when **all** of the following hold:
 **Deliverables**
 - Monorepo (pnpm workspaces): `apps/api`, `apps/web` (empty shell), `packages/shared`; TS configs, ESLint, Prettier, Husky pre-commit.
 - Docker Compose for local development: MySQL 8, Redis, MinIO, Mailpit; Dockerfiles for api/worker/web.
-- Complete `schema.prisma` for **all** domains in 03 (so later phases add features, not table rewrites), first migration, seed (permissions, system roles, finance system categories, demo school).
+- Complete `schema.prisma` for **all** domains in 03 (so later phases add features, not table rewrites), first migration, seed (permissions, system roles, finance system categories, official grading scale, demo school).
 - API core: config loader with env validation, structured logging, request IDs, error handling (problem+json), Zod validation middleware, pagination helpers, tenant context (AsyncLocalStorage) + Prisma tenant extension, permission guard, audit service, health/readiness, OpenAPI generation.
 - Spike results confirmed: composite FKs via Prisma, Chromium PDF in container, SheetJS parsing of .xls.
 - CI pipeline: lint, typecheck, unit + integration tests (Testcontainers), build.
@@ -74,18 +74,21 @@ A phase is complete only when **all** of the following hold:
 - Rollover is available only after Final Term results are published (stubbed until Phase 6). The preview lists promote/repeat/graduate per student. Commit creates next-year enrolments correctly. Re-running the commit does nothing.
 
 ### Phase 6 — Examinations & results
-**Deliverables:** exam types and weights, grading scales, exams and papers, lifecycle (draft → publish, unlock), mark entry grid (autosave, progress), marks computation, independent Mid Term and Final Term results (each out of 100%), rankings with tie rules, result snapshots, report card remarks, Mid Term and Final Term report card PDFs (first version), exam schedule per term, mark sheet/broadsheet.
+**Deliverables:** official grading scale (seeded, read-only), one examination per term with one paper per subject out of 100, lifecycle (draft → publish, unlock), mark entry grid (autosave, progress), marks computation, independent Mid Term and Final Term results (each out of 100%), rankings with tie rules, result snapshots, report card remarks, Mid Term and Final Term report card PDFs (first version), exam schedule per term, mark sheet/broadsheet.
 
 **Acceptance criteria**
-- Every exam belongs to Mid Term or Final Term, and paper dates outside that term are rejected.
+- Every exam belongs to Mid Term or Final Term, and paper dates outside that term are rejected. A second examination in the same term, a second paper for the same grade level and subject, or maximum marks other than 100 are rejected.
+- **Grading scale boundaries:** automated tests cover every boundary of the official scale: 100 and 91 → A+, 90 and 85 → A-, 84 and 80 → B+, 79 and 75 → B, 74 and 70 → C+, 69 and 65 → C, 64 and 60 → D+, 59 and 50 → D, 49 and 0 → F. Non-whole percentages follow the rule confirmed in Q-E8.
+- **PASS/FAIL:** a Final Term overall percentage of 50 gives PASS and 49.99 gives FAIL. Mid Term results show "no PASS/FAIL decision". A student who scored below 50 in Mid Term but at least 50 in Final Term is PASS, and the reverse is FAIL.
+- The grading scale is read-only in v1. Any attempt to edit it is rejected, and published snapshots record the scale version.
 - Publishing Mid Term produces Mid Term results, grades and ranks. Publishing Final Term produces Final Term results, grades and ranks. Each is calculated independently on a 100% scale and matches hand-calculated fixtures.
 - No subject term mark can exceed 100, and the overall term percentage is between 0 and 100.
 - **No annual result is produced:** tests assert that no combined or weighted annual percentage, grade or rank is calculated, stored, returned by the API or printed, and that the Final Term result is never labelled as an annual result. The annual result policy is fixed to `NONE`, and attempts to set another mode are rejected.
-- Marks outside 0..max are rejected. ABSENT/EXEMPT are handled per agreed rules.
+- Marks outside 0–100 are rejected. ABSENT/EXEMPT are handled per agreed rules (Q-E3).
 - Teachers can enter marks only for assigned subject × section, and only during MARKS_ENTRY.
 - Publishing produces snapshots. Editing marks afterwards requires unlock (audited) and re-publish. Published ranks never change silently.
 - Ranking tests cover ties (1, 2, 2, 4), missing marks and exempt subjects, using fixtures with hand-calculated expected results.
-- Mid Term and Final Term report card PDFs for a class render in Somali and in English with the correct term label, totals, grades, ranks and term attendance. The Final Term report card shows the Mid Term results in a separate column, with no combined or annual figure.
+- Mid Term and Final Term report card PDFs for a class render in Somali and in English with the correct term label; for each subject the mark, percentage and letter grade; term total, percentage, overall grade, rank, result status (Final Term PASS/FAIL; Mid Term "no PASS/FAIL decision"), grading scale legend and term attendance. The Final Term report card shows the Mid Term results in a separate column, with no combined or annual figure.
 
 ### Phase 7 — Finance & fee management
 **Deliverables:** fee categories and structures, charge generation (preview, idempotent), ad-hoc charges, discounts, waivers with approval, billing profiles (FREE / FEE_PAYING) with approval and history, payments with allocation and credit, receipt numbering and **receipt PDF**, payment void/refund (maker-checker), outstanding balances and aging, class financial report, free student register, finance accounts, income/expenses with approval, daily cash report, fee statement PDF.
