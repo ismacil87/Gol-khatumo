@@ -179,6 +179,7 @@ POST           /api/v1/platform/schools/{id}/suspend | /reactivate | /support-se
 GET            /api/v1/platform/audit-logs
 ---- tenant ----
 GET|POST       /academic-years       POST /academic-years/{id}/set-current | /close
+GET|PATCH      /academic-years/{id}/terms   (Mid Term, Final Term: created with the year; dates editable)
 GET|POST       /grade-levels  /sections  /subjects  /teaching-assignments
 GET|POST       /students             GET|PATCH /students/{id}   POST /students/{id}/transfer | /change-status
 GET|POST       /guardians            POST /students/{id}/guardians
@@ -304,7 +305,7 @@ Report request → permission check → data query (tenant-scoped, read-only)
   → Chromium page.pdf({ format: 'A4', printBackground: true, displayHeaderFooter, margins })
   → stream to client (single doc)  OR  store in object storage + job result (bulk / merged)
 ```
-- **Layout kit:** reusable partials for the school header (logo, bilingual name, address, phone, email, registration number), report title block (title, academic year, term, filters applied, generated on/by), data tables (repeated `<thead>` on each page, zebra rows, totals row), KPI summary, chart slot, signature block (prepared by / checked by / principal, plus stamp), and footer ("Page X of Y", document code, generation timestamp).
+- **Layout kit:** reusable partials for the school header (logo, bilingual name, address, phone, email, registration number), report title block (title, academic year, term label "Mid Term" or "Final Term" where the report is term-based, filters applied, generated on/by), data tables (repeated `<thead>` on each page, zebra rows, totals row), KPI summary, chart slot, signature block (prepared by / checked by / principal, plus stamp), and footer ("Page X of Y", document code, generation timestamp).
 - **Fonts:** open-licence fonts with full Latin Extended coverage (e.g. **Noto Sans** for body, **Noto Serif** optional for headings), bundled in the image and embedded in the PDF, so nothing depends on fonts installed on the server.
 - **Charts:** rendered server-side to SVG (the same chart specs as the web app, using a small SVG chart helper). No client-side JavaScript runs in the PDF.
 - **Preview / download / print:** the web app fetches the PDF as a blob and shows it in an `<iframe>` viewer (desktop) or opens it in the device's native viewer (mobile), with buttons for **Download** (`Content-Disposition: attachment`) and **Print** (iframe `print()`).
@@ -313,13 +314,13 @@ Report request → permission check → data query (tenant-scoped, read-only)
 - **Official documents:** receipts and report cards can embed a verification code and QR (FR-PDF-07, could-have).
 
 ### 8.3 Standard PDF catalogue (v1)
-Receipt · Student fee statement · Outstanding balances by class · Class financial summary · Free student register · Daily cash report · Income/expense report · Report card (term/annual) · Mark sheet / broadsheet · Ranking list · Section roster · Attendance register (monthly) · Staff attendance report · Timetable (section/teacher) · Exam schedule · Library overdue list · Inventory stock report · Transport route roster · Student profile.
+Receipt · Student fee statement · Outstanding balances by class · Class financial summary · Free student register · Daily cash report · Income/expense report · Mid Term report card · Final Term report card (with annual result) · Mark sheet / broadsheet (per term) · Ranking list (Mid Term / Final Term / annual) · Section roster · Attendance register (monthly) and term attendance summary · Staff attendance report · Timetable (section/teacher) · Exam schedule (per term) · Library overdue list · Inventory stock report · Transport route roster · Student profile.
 
 ## 9. Localization (Somali / English)
 
 - **UI strings:** i18next JSON namespaces per feature in `apps/web/src/locales/{so,en}`. Missing keys fail CI. Somali translations are reviewed by a native speaker (Q-G6).
 - **API messages:** error responses carry a stable `code` and a localized `message` resolved from `Accept-Language`, falling back to the school default.
-- **Data in two languages:** reference data that appears on official documents (school name, subject names, fee categories, grade remarks) has `name_so` and `name_en` columns. Personal names are stored as entered (single value).
+- **Data in two languages:** reference data that appears on official documents (school name, term labels, subject names, fee categories, grade remarks) has `name_so` and `name_en` columns. The term labels are seeded as the official **"Mid Term"** and **"Final Term"** in both columns until the school confirms Somali wording (Q-AY1). Personal names are stored as entered (single value).
 - **Formatting:** dates use `DD/MM/YYYY` by default (configurable). Numbers and currency are formatted via `Intl` with explicit settings (Somali locale data in browsers is incomplete, so the formats are pinned, not left to the browser). Amount in words is implemented for both languages.
 - **User preference:** stored per user, switchable from the top bar, applied immediately without a reload.
 

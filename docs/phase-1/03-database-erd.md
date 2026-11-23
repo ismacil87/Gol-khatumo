@@ -66,6 +66,7 @@ erDiagram
   SCHOOL_SETTINGS {
     string school_id PK
     json working_days
+    json term_template "initial: Mid Term, Final Term"
     json numbering_formats
     json report_card_options
     int attendance_edit_window_hours
@@ -135,7 +136,7 @@ erDiagram
 ```mermaid
 erDiagram
   SCHOOL ||--o{ ACADEMIC_YEAR : "runs"
-  ACADEMIC_YEAR ||--o{ TERM : "divided into"
+  ACADEMIC_YEAR ||--|{ TERM : "Mid Term + Final Term"
   SCHOOL ||--o{ GRADE_LEVEL : "offers"
   GRADE_LEVEL ||--o{ SECTION : "split into (per year)"
   ACADEMIC_YEAR ||--o{ SECTION : "scopes"
@@ -160,11 +161,14 @@ erDiagram
   TERM {
     string id PK
     string academic_year_id FK
-    string name_so
-    string name_en
-    int sequence
+    string code "MID_TERM|FINAL_TERM (initial config)"
+    int sequence "1 = Mid Term, 2 = Final Term"
+    string name_so "Mid Term | Final Term"
+    string name_en "Mid Term | Final Term"
     date start_date
     date end_date
+    boolean is_final "true for Final Term: closes the year"
+    string status "UPCOMING|ACTIVE|CLOSED"
   }
   GRADE_LEVEL {
     string id PK
@@ -215,6 +219,32 @@ erDiagram
     string title_en
   }
 ```
+
+### 4.1 Term structure (two terms: Mid Term and Final Term)
+
+Gol Khatumo School uses **terms, not semesters**: exactly two per academic year (01 — Requirements §1.6).
+
+```mermaid
+flowchart TB
+  AY["ACADEMIC_YEAR 2026–2027"] --> T1["TERM seq 1<br/>code MID_TERM · 'Mid Term'"]
+  AY --> T2["TERM seq 2<br/>code FINAL_TERM · 'Final Term' · is_final"]
+  T1 --> E1["EXAM (term_id = Mid Term)"]
+  T2 --> E2["EXAM (term_id = Final Term)"]
+  T1 --> C1["FEE_CHARGE period_key 2026-27:MID_TERM"]
+  T2 --> C2["FEE_CHARGE period_key 2026-27:FINAL_TERM"]
+  T1 --> R1["RESULT_SNAPSHOT scope TERM (Mid Term)"]
+  T2 --> R2["RESULT_SNAPSHOT scope TERM (Final Term)"]
+  R1 & R2 --> RY["RESULT_SNAPSHOT scope YEAR (annual)"]
+  T1 --> RM1["REPORT_CARD_REMARK (Mid Term)"]
+  T2 --> RM2["REPORT_CARD_REMARK (Final Term)"]
+```
+
+Constraints and rules:
+- `UNIQUE (school_id, academic_year_id, sequence)` and `UNIQUE (school_id, academic_year_id, code)` on `term`.
+- Term dates must fall inside the academic year and must not overlap (service validation plus tests). Sequence 1 = Mid Term, sequence 2 = Final Term.
+- **Initial configuration (seed / school onboarding):** every academic year created for Gol Khatumo School gets exactly two terms, `MID_TERM` ("Mid Term") and `FINAL_TERM` ("Final Term", `is_final = true`). A school setting `term_template` holds this two-term template, and new years copy it. Terms are data, not hard-coded, so the structure stays configurable for future years, but the service only allows terms defined in the school's template. No third term and no semesters are created.
+- A term is the parent of: exams (`exam.term_id`), termly fee charges (`fee_charge.term_id`, `period_key`), term result snapshots and report card remarks. Attendance records are linked to a term by date range; the term attendance summary is calculated from attendance dates within the term.
+- Closing the **Final Term** (when its results are published) enables annual results and year-end rollover.
 
 ## 5. People: students, guardians, staff, enrolment
 
@@ -423,16 +453,18 @@ erDiagram
   EXAM ||--o{ RESULT_SNAPSHOT : "published results"
   ENROLLMENT ||--o{ RESULT_SNAPSHOT : "for"
   ENROLLMENT ||--o{ REPORT_CARD_REMARK : "remarks"
+  TERM ||--o{ RESULT_SNAPSHOT : "term results"
+  TERM ||--o{ REPORT_CARD_REMARK : "per term"
 
   EXAM_TYPE {
     string id PK
     string name_so
     string name_en
-    decimal default_weight "% toward term result"
+    decimal default_weight "% toward its term result (Mid Term or Final Term)"
   }
   EXAM {
     string id PK
-    string term_id FK
+    string term_id FK "Mid Term or Final Term"
     string exam_type_id FK
     string grading_scale_id FK
     string name_so
@@ -480,8 +512,9 @@ erDiagram
   RESULT_SNAPSHOT {
     string id PK
     string scope "EXAM|TERM|YEAR"
-    string exam_id FK "nullable"
-    string term_id FK "nullable"
+    string exam_id FK "set when scope = EXAM"
+    string term_id FK "Mid Term or Final Term; set when scope = EXAM or TERM"
+    string academic_year_id FK "set when scope = YEAR"
     string enrollment_id FK
     decimal total_score
     decimal total_max
@@ -497,7 +530,7 @@ erDiagram
   REPORT_CARD_REMARK {
     string id PK
     string enrollment_id FK
-    string term_id FK
+    string term_id FK "Mid Term or Final Term"
     string class_teacher_remark
     string principal_remark
   }
@@ -505,6 +538,9 @@ erDiagram
 
 Rules:
 - `UNIQUE (school_id, exam_paper_id, enrollment_id)` on marks.
+- Every exam belongs to exactly one term (Mid Term or Final Term), and its paper dates must fall inside that term.
+- Result levels: **EXAM** → **TERM** (Mid Term result, Final Term result; weighted exams of that term) → **YEAR** (annual result combining Mid Term and Final Term; weights per Q-E2). Ranks are computed at each level.
+- The annual (YEAR) snapshot is produced when the Final Term exams are published, and needs the Mid Term results to be published already.
 - Marks can be written only while `exam.status = MARKS_ENTRY`. The service checks this inside the transaction, together with the exam `version`.
 - On publish, results and ranks are computed and written to `result_snapshot`. Report cards and rankings read **only** snapshots, so published results cannot drift. Unlocking a published exam invalidates its snapshots, and re-publishing recomputes them (audited).
 
@@ -524,6 +560,7 @@ erDiagram
   FEE_STRUCTURE_ITEM |o--o{ FEE_CHARGE : "generated from"
   FEE_CATEGORY ||--o{ FEE_CHARGE : "category"
   CHARGE_RUN ||--o{ FEE_CHARGE : "produced"
+  TERM ||--o{ FEE_CHARGE : "billed in"
   STUDENT ||--o{ PAYMENT : "pays"
   PAYMENT ||--o{ PAYMENT_ALLOCATION : "allocated"
   FEE_CHARGE ||--o{ PAYMENT_ALLOCATION : "settled by"
@@ -554,7 +591,7 @@ erDiagram
     string fee_category_id FK
     decimal amount
     string frequency "ONE_TIME|MONTHLY|TERMLY|ANNUAL"
-    int due_day "day of month / days after term start"
+    int due_day "day of month (MONTHLY) or days after term start (TERMLY)"
   }
   BILLING_PROFILE {
     string id PK
@@ -588,7 +625,8 @@ erDiagram
   CHARGE_RUN {
     string id PK
     string academic_year_id FK
-    string period_key "2026-11 | T1 | Y"
+    string period_key "2026-11 | 2026-27:MID_TERM | 2026-27:FINAL_TERM | 2026-27:YEAR"
+    string term_id FK "for TERMLY runs"
     string idempotency_key UK
     int charges_created
     string run_by_id FK
@@ -599,6 +637,7 @@ erDiagram
     string fee_category_id FK
     string fee_structure_item_id FK "nullable for ad-hoc"
     string charge_run_id FK "nullable"
+    string term_id FK "Mid Term or Final Term the charge belongs to"
     string period_key
     string description
     decimal amount
@@ -672,7 +711,7 @@ erDiagram
 1. **Balance derivation:** `balance(enrollment) = Σ charge.amount − Σ charge.discount_amount − Σ adjustment.amount − Σ allocation.amount` over non-void charges and valid payments. There is **no stored "balance" column** that can drift. A per-enrolment summary may be cached for reports and is rebuilt from the ledger.
 2. **Free students:** while `billing_profile.billing_type = FREE`, charge generation skips the enrolment, and creating any charge whose category has `applies_to_free_students = false` is rejected with `FEE_STUDENT_IS_FREE`. Free students therefore always have outstanding = 0 for those categories.
 3. **Fee status** per enrolment and period: `FREE` if billing type is FREE; otherwise `PAID` / `PARTIAL` / `UNPAID` / `CREDIT`, derived from the balance (FR-BAL-02).
-4. **Idempotent generation:** `UNIQUE (school_id, enrollment_id, fee_structure_item_id, period_key)` on generated charges, so a run repeated for the same period creates nothing new.
+4. **Idempotent generation:** `UNIQUE (school_id, enrollment_id, fee_structure_item_id, period_key)` on generated charges, so a run repeated for the same period creates nothing new. TERMLY items produce exactly two charges per fee-paying enrolment per year: one for Mid Term and one for Final Term. MONTHLY charges carry the `term_id` of the term their month falls in, so balances can be reported per term.
 5. **Allocation integrity:** `Σ allocations(payment) = payment.amount`; `Σ allocations(charge) ≤ charge net amount`. Both are checked in the same transaction with row locks (`SELECT … FOR UPDATE`).
 6. **Immutability:** payments, allocations and charges are never updated in amount or deleted. Corrections use void + re-issue, or adjustments, all audit-logged.
 7. **Receipt numbers** come from `number_sequence` with a row lock, inside the payment transaction: gapless and unique per school per year. A voided payment keeps its number.

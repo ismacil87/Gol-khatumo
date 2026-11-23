@@ -5,7 +5,7 @@
 | # | Module | Purpose | Owns (main entities) | Depends on | Build phase |
 |---|--------|---------|----------------------|-----------|-------------|
 | 1 | **Dashboard** | Role-specific overview and KPIs; entry point after login | none (read models only) | All modules (read) | 3 (shell), extended each phase |
-| 2 | **School & Academic Year** | Tenant profile, settings, academic years, terms, calendar, rollover | School, SchoolSettings, AcademicYear, Term, CalendarEvent | Platform/IAM | 2–3 (school), 5 (years) |
+| 2 | **School & Academic Year** | Tenant profile, settings, academic years and their two terms (Mid Term, Final Term), calendar, rollover | School, SchoolSettings, AcademicYear, Term, CalendarEvent | Platform/IAM | 2–3 (school), 5 (years) |
 | 3 | **Student Management** | Admission, profile, lifecycle, enrolment, transfers | Student, Enrollment, StudentStatusHistory, StudentDocument | 2, 6, 25 | 4 |
 | 4 | **Parent Information** | Guardians and their links to students (no login) | Guardian, StudentGuardian | 3 | 4 |
 | 5 | **Teacher & Staff** | Staff records, qualifications, documents, optional user link | Staff, StaffQualification, StaffDocument | 2, 25 | 4 |
@@ -15,9 +15,9 @@
 | 9 | **Student Attendance** | Daily attendance per section | AttendanceSession, StudentAttendance | 3, 6, 7 (teacher scope), 2 (calendar) | 5 |
 | 10 | **Teacher Attendance** | Staff daily attendance and leave | StaffAttendance, StaffLeave | 5, 2 | 5 |
 | 11 | **Examination** | Exam types, exams, papers, schedule, lifecycle, grading scales | ExamType, Exam, ExamPaper, GradingScale, GradeBand | 2, 6, 7 | 6 |
-| 12 | **Marks & Results** | Mark entry and computation of totals, grades, pass/fail, weighted term/annual results | Mark, ResultSnapshot | 11, 3 | 6 |
+| 12 | **Marks & Results** | Mark entry and computation of totals, grades, pass/fail; Mid Term and Final Term results and the annual result | Mark, ResultSnapshot | 11, 3 | 6 |
 | 13 | **Student Ranking** | Section and grade ranks, top-N lists | (part of ResultSnapshot) | 12 | 6 |
-| 14 | **Report Cards** | Official term/annual report card PDFs with remarks | ReportCardRemark | 12, 13, 9 (attendance summary), PDF engine | 6 (+ PDF polish in 9) |
+| 14 | **Report Cards** | Official Mid Term and Final Term (with annual result) report card PDFs with remarks | ReportCardRemark | 12, 13, 9 (attendance summary), PDF engine | 6 (+ PDF polish in 9) |
 | 15 | **Fees & Fee Structures** | Fee categories, structures per grade/year, charge generation, discounts, waivers | FeeCategory, FeeStructure, FeeStructureItem, ChargeRun, FeeCharge, StudentDiscount, ChargeAdjustment | 2, 3, 6, 17 | 7 |
 | 16 | **Payments & Receipts** | Payments, allocation, receipts, voids, refunds, daily cash | Payment, PaymentAllocation, NumberSequence | 15, 19 (posting) | 7 |
 | 17 | **Free Student Management** | FEE_PAYING/FREE billing status with approval and history | BillingProfile, BillingStatusHistory | 3 | 7 |
@@ -79,19 +79,31 @@ flowchart TD
 5. **Library and transport bill through fees.** Lost books and transport create `fee_charge` rows (sources `LIBRARY`, `TRANSPORT`), so there is one ledger and one balance per student.
 6. **Exams publish snapshots.** Ranking and report cards read result snapshots, never live marks.
 7. **Domain events drive notifications.** Modules emit events (`attendance.missing`, `exam.published`, `payment.voided`, `inventory.low_stock`, `library.overdue`, `import.completed`) and the notification module subscribes. Modules do not call each other for notifications.
-8. **Audit is cross-cutting.** Services call `audit.record(...)` inside the same transaction for every operation listed in 06 — Security §8.
+8. **The term is the time axis of the year.** Each academic year has two terms, Mid Term and Final Term. Exams belong to a term; termly fees are charged per term; attendance, results, rankings and report cards are summarised per term; annual figures combine both terms. Publishing Final Term results triggers annual results and enables rollover.
+9. **Audit is cross-cutting.** Services call `audit.record(...)` inside the same transaction for every operation listed in 06 — Security §8.
 
 ## 4. Year lifecycle (how modules interact over a school year)
 
 ```mermaid
 stateDiagram-v2
-  [*] --> Planning: Create academic year + terms
-  Planning --> Setup: Sections, curriculum, teaching assignments, fee structures, timetable
-  Setup --> Active: Set as current year; enrol / promote students; set billing status
-  Active --> Active: Daily attendance · monthly/term charge runs · payments · exams → marks → publish → report cards
-  Active --> Closing: Final exams published; annual results & rankings
-  Closing --> Rollover: Promote / repeat / graduate (preview → commit); carry forward balances
-  Rollover --> Closed: Year read-only (corrections need School Admin + audit)
+  [*] --> Planning: Create academic year (Mid Term + Final Term created automatically)
+  Planning --> Setup: Term dates, sections, curriculum, teaching assignments, fee structures, timetable
+  Setup --> MidTerm: Set as current year · enrol / promote students · set billing status
+  state MidTerm {
+    [*] --> MT_Run
+    MT_Run: Mid Term — attendance · Mid Term fee charges · payments · Mid Term exams → marks
+    MT_Run --> MT_Pub: Publish Mid Term results & ranking
+    MT_Pub: Mid Term report cards
+  }
+  MidTerm --> FinalTerm: Mid Term closed
+  state FinalTerm {
+    [*] --> FT_Run
+    FT_Run: Final Term — attendance · Final Term fee charges · payments · Final Term exams → marks
+    FT_Run --> FT_Pub: Publish Final Term results
+    FT_Pub: Annual results & ranking (Mid Term + Final Term) · Final Term report cards
+  }
+  FinalTerm --> Rollover: Final Term closed
+  Rollover --> Closed: Promote / repeat / graduate (preview → commit) · year read-only
   Closed --> [*]
 ```
 

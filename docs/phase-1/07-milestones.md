@@ -63,28 +63,33 @@ A phase is complete only when **all** of the following hold:
 - Filtered student list exports to .xlsx with the same rows as the screen.
 
 ### Phase 5 — Academic management
-**Deliverables:** academic years and terms, set current and close year, calendar and holidays, full section management, subjects and curriculum, teaching assignments, bell schedule and timetable with conflict detection, student daily attendance (mark-all-present flow, lock window), staff attendance and leave, attendance reports, year-end rollover (preview/commit).
+**Deliverables:** academic years with their two terms (Mid Term, Final Term) created from the school's term template, term dates, set current and close year, calendar and holidays, full section management, subjects and curriculum, teaching assignments, bell schedule and timetable with conflict detection, student daily attendance (mark-all-present flow, lock window), staff attendance and leave, attendance reports, year-end rollover (preview/commit).
 
 **Acceptance criteria**
+- Creating an academic year for Gol Khatumo School produces exactly two terms, labelled "Mid Term" (sequence 1) and "Final Term" (sequence 2). Overlapping term dates, dates outside the year, or an extra term are rejected. A new year copies the two-term structure.
+- Attendance is expected only on working days inside Mid Term or Final Term. Term attendance summaries (per student, per section) match the raw records.
 - Timetable rejects a teacher double-booking and a section slot clash with clear localized messages.
 - A teacher can take attendance only for assigned sections, on working days, within the edit window. The Principal can edit later, with a reason (audited).
 - Monthly attendance register for a section matches the raw records. Holidays are excluded.
-- Rollover preview lists promote/repeat/graduate per student. Commit creates next-year enrolments correctly. Re-running the commit does nothing.
+- Rollover is available only after Final Term results are published (stubbed until Phase 6). The preview lists promote/repeat/graduate per student. Commit creates next-year enrolments correctly. Re-running the commit does nothing.
 
 ### Phase 6 — Examinations & results
-**Deliverables:** exam types and weights, grading scales, exams and papers, lifecycle (draft → publish, unlock), mark entry grid (autosave, progress), marks computation, term and annual weighted results, rankings with tie rules, result snapshots, report card remarks, report card PDF (first version), mark sheet/broadsheet.
+**Deliverables:** exam types and weights, grading scales, exams and papers, lifecycle (draft → publish, unlock), mark entry grid (autosave, progress), marks computation, Mid Term and Final Term results and the annual result, rankings with tie rules, result snapshots, report card remarks, Mid Term and Final Term report card PDFs (first version), exam schedule per term, mark sheet/broadsheet.
 
 **Acceptance criteria**
+- Every exam belongs to Mid Term or Final Term, and paper dates outside that term are rejected.
+- Publishing Mid Term produces Mid Term results and ranks. Publishing Final Term produces Final Term results plus annual results and ranks combining both terms, matching hand-calculated fixtures using the weights agreed in Q-E2.
 - Marks outside 0..max are rejected. ABSENT/EXEMPT are handled per agreed rules.
 - Teachers can enter marks only for assigned subject × section, and only during MARKS_ENTRY.
 - Publishing produces snapshots. Editing marks afterwards requires unlock (audited) and re-publish. Published ranks never change silently.
 - Ranking tests cover ties (1, 2, 2, 4), missing marks and exempt subjects, using fixtures with hand-calculated expected results.
-- A report card PDF for a class renders in Somali and in English with correct totals, grades, ranks and attendance.
+- Mid Term and Final Term report card PDFs for a class render in Somali and in English with the correct term label, totals, grades, ranks and term attendance. The Final Term report card also shows the Mid Term column and the annual result.
 
 ### Phase 7 — Finance & fee management
 **Deliverables:** fee categories and structures, charge generation (preview, idempotent), ad-hoc charges, discounts, waivers with approval, billing profiles (FREE / FEE_PAYING) with approval and history, payments with allocation and credit, receipt numbering and **receipt PDF**, payment void/refund (maker-checker), outstanding balances and aging, class financial report, free student register, finance accounts, income/expenses with approval, daily cash report, fee statement PDF.
 
 **Acceptance criteria**
+- TERMLY fee items produce exactly one charge for Mid Term and one for Final Term per fee-paying student. Outstanding reports can be filtered by term.
 - Generating charges twice for the same period creates no duplicates. Free students receive no charges, and manual attempts to charge them (non-allowed categories) are rejected.
 - For a seeded scenario (paid, partial, unpaid, free, credit students), balances and statuses match hand-calculated expected values exactly. Class report totals reconcile: expected = collected + outstanding + waived/discounted.
 - 100 concurrent payment requests produce 100 unique, gapless receipt numbers. An idempotent retry creates no duplicate payment.

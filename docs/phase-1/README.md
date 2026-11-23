@@ -28,6 +28,7 @@
 | Tenancy | Multi-school (multi-tenant) |
 | Hosting | Cloud, provider-independent until a provider is chosen |
 | Languages | Somali and English, with a language switcher |
+| Academic structure | Two **terms** per academic year (not semesters): **Mid Term** and **Final Term** (confirmed, C-01) |
 | Users (v1) | Staff only. Parents and students have no login. |
 | Roles | Platform Super Admin, School Admin, Principal, Accountant, Teacher |
 | Backend | Node.js + Express.js + TypeScript |

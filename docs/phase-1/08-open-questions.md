@@ -2,6 +2,12 @@
 
 Every item below has a **proposed default**, so you can approve Phase 1 by accepting the defaults and changing only the ones you disagree with. Items marked ★ are **critical**: they change the database schema or financial behaviour and should be confirmed before Phase 2 starts.
 
+## 0. Confirmed by the project owner
+
+| ID | Decision | Effect on the documentation |
+|----|----------|-----------------------------|
+| C-01 | **Academic structure: two TERMS per academic year, not semesters.** Official labels: **1. Mid Term**, **2. Final Term**. No third term. | Requirements §1.6 (AS-1 to AS-6), FR-SCH-05/07, attendance, exams, results, ranking, report cards and fees use the two-term structure. ERD: `term.code` = `MID_TERM` / `FINAL_TERM`, `school_settings.term_template`, `fee_charge.term_id`. Module lifecycle and milestone acceptance criteria updated. Terms are stored as data per academic year (configurable for future years); the initial configuration contains exactly Mid Term and Final Term. |
+
 ## 1. Technical decisions for approval
 
 | ID | Decision | Proposed | Alternatives | Why |
@@ -37,12 +43,14 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | Q-A1 | Student attendance granularity | **Daily** per section (per-period attendance is a later option) |
 | Q-A2 | Who records teacher attendance? | School Admin/Principal or a delegate records it; no self check-in in v1 |
 | Q-A3 | Attendance edit window for teachers | Same day until midnight school time; later edits by the Principal |
-| Q-E1 ★ | Exam structure per term | Please describe, e.g. "Monthly test + Midterm + Final per term, 2 terms per year" |
-| Q-E2 ★ | How are term and annual results calculated? | Weighted average of exam percentages within a term (weights per exam type); annual = average of terms (or weighted). Please give the actual weights. |
+| Q-AY1 | Somali wording of the term labels | Use the official labels "Mid Term" and "Final Term" unchanged in both languages, unless the school provides official Somali labels |
+| Q-AY2 | Typical term dates | Please give the usual start and end dates of Mid Term and Final Term, so they can pre-fill each new academic year |
+| Q-E1 ★ | Which exams are held in each term (Mid Term and Final Term)? | Please describe, e.g. "Mid Term: 2 monthly tests + 1 term examination; Final Term: 2 monthly tests + 1 final examination". The two-term structure is confirmed (C-01); only the exams inside each term remain open. |
+| Q-E2 ★ | How are term and annual results calculated? | Each term result (Mid Term, Final Term) = weighted average of that term's exam percentages (weights per exam type). Annual result = **50% Mid Term + 50% Final Term** unless you give other weights (e.g. 40/60). |
 | Q-E3 ★ | Ranking rules | Rank by overall percentage over ranking subjects; ties share a rank (1, 2, 2, 4); a student ABSENT for a paper gets 0 for that paper; students with *missing* entries are not ranked until complete; EXEMPT subjects are excluded from that student's total and maximum |
 | Q-E4 ★ | Grading scale | Please provide it, e.g. A 90–100, B 80–89, C 70–79, D 60–69, E 50–59, F < 50; pass mark 50% |
-| Q-E5 | Pass/fail and promotion rule | Pass overall if percentage ≥ pass mark. Promotion is decided by the Principal at rollover, with the system's suggestion. |
-| Q-E6 | Report card language and layout | Bilingual (Somali + English labels) by default; please share any current report card to match its layout |
+| Q-E5 | Pass/fail and promotion rule | Pass overall if the **annual** percentage (Mid Term + Final Term) ≥ pass mark. Promotion is decided by the Principal at rollover after Final Term, with the system's suggestion. |
+| Q-E6 | Report card types, language and layout | Two report cards per year: **Mid Term report card**, and **Final Term report card** showing Final Term results, the Mid Term column and the annual result and rank. Bilingual labels by default. Please share any current report card so its layout can be matched. |
 
 ### Finance
 | ID | Question | Proposed default |
@@ -55,7 +63,7 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | Q-F6 | Expense approval | Expenses are recorded by the Accountant and approved by the School Admin before they count in reports |
 | Q-F7 | Withhold report cards when fees are outstanding? | No by default; optional school setting |
 | Q-F8 | Arrears from previous years | Stay on the old year's ledger and appear as arrears in balances and statements |
-| Q-F9 ★ | Billing frequency of tuition | Monthly tuition (e.g. 10 months per year), plus one-time registration and termly exam fees. Please confirm the actual fee schedule. |
+| Q-F9 ★ | Billing frequency of tuition | Monthly tuition (e.g. 10 months per year, each month assigned to Mid Term or Final Term), plus one-time registration and **termly** exam fees, charged once for Mid Term and once for Final Term. Or is tuition charged per term? Please confirm the actual fee schedule. |
 | Q-F10 | Late payment penalties | None in v1 |
 | Q-F11 | Receipt format | A4 by default, optional A5/half-page; bilingual; gapless numbering per school per year |
 
@@ -68,7 +76,7 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | Q-G4 | Payroll | Out of scope; salaries recorded as expenses |
 | Q-G5 | Data retention | Financial records 7 years; audit logs 2 years; student records indefinitely while the school is active |
 | Q-G6 | Somali translations | We draft them; a native speaker from the school reviews them before each release. Who will review? |
-| Q-G7 | Team and timeline | Please confirm team size and any target go-live date (e.g. start of a term) |
+| Q-G7 | Team and timeline | Please confirm team size and any target go-live date (e.g. start of a Mid Term or Final Term) |
 | Q-G8 | Pilot | Pilot at Gol Khatumo School after Phase 7, with backups and basic hardening in place |
 | Q-N1 | SMS/email to guardians | Not in v1; channel abstraction prepared. Which provider would you prefer later (local SMS gateway)? |
 | Q-H1 | Hosting region / provider preference | Provider-independent until Phase 10. Consider a region with good latency to East Africa (e.g. a Middle East, East Africa or Europe region). |
@@ -102,6 +110,7 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | R-11 | Dependency vulnerabilities (e.g. spreadsheet parsers) | Medium | High | Pinned, audited dependencies; parsing in an isolated worker with limits; Renovate updates |
 | R-12 | Key-person dependency / knowledge loss | Medium | Medium | Documentation per phase, ADRs, runbooks, tests as specification |
 | R-13 | Teachers struggling with the UI on small phones | Medium | Medium | Mobile-first flows for attendance and marks; usability test with real teachers in Phases 5–6 |
+| R-14 | Confusion between the term named "Mid Term" and a mid-term exam | Medium | Medium | Exam names are distinct from term labels; screens and PDFs always show the term label next to the exam name (AS-6) |
 
 ## 5. Architecture decision records
 From Phase 2 onward, each approved decision (D-01 to D-09 and any later ones) is recorded as an ADR in `docs/adr/NNNN-title.md`: context, decision, consequences, status. That gives future maintainers a traceable history.

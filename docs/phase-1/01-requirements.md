@@ -39,12 +39,41 @@ GKSMS is a cloud-based, multi-school management platform. It digitises a school'
 | Regulators / education office (indirect) | Official reports and enrolment statistics |
 
 ### 1.5 Assumptions
-- **A1.** Schools follow a Gregorian academic year divided into terms. The number of terms is configurable per school.
+- **A1.** Schools follow a Gregorian academic year divided into **terms, not semesters**. For Gol Khatumo School the year has exactly **two terms: Mid Term and Final Term** (see §1.6).
 - **A2.** One currency per school. **[PROPOSED]** The default is USD. See Q-F1.
 - **A3.** The default time zone is Africa/Mogadishu (EAT, UTC+3), configurable per school.
 - **A4.** School working days are configurable per school (for example Saturday–Wednesday or Saturday–Thursday).
 - **A5.** Internet access at schools may be slow or intermittent. The UI must be lightweight and must tolerate retries. Full offline mode is not in v1 (Q-G2).
 - **A6.** Somali uses the Latin script, so no right-to-left layout or complex text shaping is needed. Fonts must still cover the full Latin character set, including apostrophes in names such as *Ba'ad*.
+
+### 1.6 Academic structure (confirmed by the project owner)
+Gol Khatumo School uses **terms, not semesters**. Each academic year has exactly **two terms**, with these official labels:
+
+| Sequence | Official label | Role in the year |
+|----------|----------------|------------------|
+| 1 | **Mid Term** | First term of the academic year |
+| 2 | **Final Term** | Second and last term. Its close also completes the academic year (annual results, promotion). |
+
+```mermaid
+flowchart LR
+  AY["Academic Year<br/>e.g. 2026–2027"] --> MT["Term 1: Mid Term"]
+  AY --> FT["Term 2: Final Term"]
+  MT --> MTX["Mid Term exams · marks<br/>Mid Term results & ranking<br/>Mid Term report card"]
+  FT --> FTX["Final Term exams · marks<br/>Final Term results & ranking"]
+  MTX --> ANN["Annual result<br/>(Mid Term + Final Term)<br/>annual ranking · promotion"]
+  FTX --> ANN
+  ANN --> RC["Final Term / annual report card"]
+  MT -.-> FEE1["Termly fees charged for Mid Term"]
+  FT -.-> FEE2["Termly fees charged for Final Term"]
+```
+
+Rules:
+- **AS-1.** The initial configuration of Gol Khatumo School, and of every academic year created for it, contains exactly two terms in this order: **Mid Term**, **Final Term**. The labels are used exactly as written on screens, reports and PDFs.
+- **AS-2.** Terms are stored as data per academic year, not hard-coded. Each term has a sequence, label, start date and end date. The structure therefore stays configurable for future academic years: when a new year is created, it copies the previous year's term structure (Mid Term, Final Term) by default, and the School Admin sets the dates.
+- **AS-3.** Terms within a year do not overlap, fall inside the academic year's dates, and are ordered Mid Term → Final Term.
+- **AS-4.** The system never introduces a third term or semesters. Report types, fee periods and screens are built for the two-term structure.
+- **AS-5.** Everything time-based in the year attaches to a term: exams and exam scheduling, termly fee charges, attendance summaries, results and rankings, report cards. Annual figures combine Mid Term and Final Term.
+- **AS-6.** "Mid Term" here is the name of the **first term**, not a mid-term exam. To avoid confusion, exam names inside each term are defined separately (see Q-E1), and screens always show the term label next to the exam name, e.g. "Mid Term · Monthly Test 1".
 
 ---
 
@@ -67,9 +96,9 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-SCH-02 | Super Admin creates the first School Admin account when onboarding a school | M |
 | FR-SCH-03 | School Admin maintains the school profile and official information used on PDFs (logo, stamp/signature images, principal's name, registration number) | M |
 | FR-SCH-04 | Create academic years with start and end dates. Exactly one year per school is *current*. A year can be closed (read-only). | M |
-| FR-SCH-05 | Define terms within an academic year (e.g. Term 1, Term 2) with dates | M |
+| FR-SCH-05 | Each academic year contains two terms, **Mid Term** and **Final Term**, with start and end dates, created automatically with the year (AS-1 to AS-3). The School Admin edits dates; the term structure is copied to each new year. | M |
 | FR-SCH-06 | Configure working days, school holidays and closure dates. Attendance is not expected on these days. | S |
-| FR-SCH-07 | Year-end rollover: promote students to the next grade, repeat, graduate or withdraw, with a preview before committing | M |
+| FR-SCH-07 | Year-end rollover, after Final Term results are published: promote students to the next grade, repeat, graduate or withdraw, with a preview before committing | M |
 | FR-SCH-08 | Configure numbering formats for admission numbers, employee numbers and receipt numbers | S |
 
 ### 2.3 Student Management (STU)
@@ -137,6 +166,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-SAT-03 | Teachers can take attendance only for sections they are class teacher of or teach. Edits after a configurable window (e.g. same day) need Principal permission. | M |
 | FR-SAT-04 | Attendance reports: daily absentees, monthly register per section, student attendance percentage, chronic absentees | M |
 | FR-SAT-05 | Per-period (per-lesson) attendance | C (Q-A1) |
+| FR-SAT-06 | Attendance is expected only on working days inside a term (Mid Term or Final Term). Attendance summaries (days present, absent, late, attendance %) are calculated per term and for the year, and feed the report cards. | M |
 
 ### 2.10 Teacher Attendance (TAT)
 | ID | Requirement | P |
@@ -149,10 +179,10 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 ### 2.11 Examination Management (EXM)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-EXM-01 | Configure exam types (e.g. Monthly Test, Midterm, Final) and their weighting toward term and annual results | M |
-| FR-EXM-02 | Create an exam for a term, choose the grade levels and subjects, and set maximum marks, pass mark and date per paper | M |
+| FR-EXM-01 | Configure exam types (e.g. Monthly Test, Term Examination; actual list per Q-E1) and their weighting toward the term result | M |
+| FR-EXM-02 | Create an exam inside a specific term (**Mid Term** or **Final Term**), choose the grade levels and subjects, and set maximum marks, pass mark and date per paper. Exam dates must fall within that term's dates. | M |
 | FR-EXM-03 | Exam lifecycle: DRAFT → SCHEDULED → MARKS_ENTRY → LOCKED → PUBLISHED. Marks are only editable during MARKS_ENTRY. Unlocking needs Principal or School Admin permission and a stated reason, and is audit-logged. | M |
-| FR-EXM-04 | Exam timetable / schedule PDF per grade level | S |
+| FR-EXM-04 | Exam timetable / schedule PDF per grade level, per term (Mid Term, Final Term) | S |
 | FR-EXM-05 | Grading scale per school: percentage bands → grade, remark (Somali/English) and optional grade point | M |
 
 ### 2.12 Marks & Results (MRK)
@@ -162,14 +192,14 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-MRK-02 | Validation: 0 ≤ mark ≤ maximum mark. Mark a student ABSENT or EXEMPT instead of entering a score. | M |
 | FR-MRK-03 | Autosave drafts. Show entry progress per paper (entered / total). | S |
 | FR-MRK-04 | Compute per-student results: total, percentage, grade, pass/fail per subject and overall | M |
-| FR-MRK-05 | Term and annual results computed from weighted exams | M (rules in Q-E2) |
+| FR-MRK-05 | Mid Term result and Final Term result, each computed from that term's weighted exams. The annual result combines the Mid Term and Final Term results. | M (weights in Q-E2) |
 | FR-MRK-06 | Import marks from Excel per exam (see §2.26) | M |
 | FR-MRK-07 | Mark sheets / broadsheets per section (students × subjects) to PDF and Excel | M |
 
 ### 2.13 Student Ranking (RNK)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-RNK-01 | Rank students within a section and within the whole grade level, per exam, per term and per year | M |
+| FR-RNK-01 | Rank students within a section and within the whole grade level, per exam, for Mid Term, for Final Term and for the year (annual) | M |
 | FR-RNK-02 | **[PROPOSED]** Ranking by percentage across subjects that count toward ranking. Ties share a rank using standard competition ranking (1, 2, 2, 4). Students with missing (not ABSENT) marks are excluded until complete. See Q-E3. | M |
 | FR-RNK-03 | Top-N lists per grade level and per subject | S |
 | FR-RNK-04 | Rankings are snapshotted when an exam is published so later edits cannot silently change published ranks | M |
@@ -177,8 +207,8 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 ### 2.14 Report Cards (RPC)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-RPC-01 | Generate report cards per student, section or grade level as PDF for a term or year | M |
-| FR-RPC-02 | Contents: school header and logo, student details, subject marks per exam, totals, percentage, grade, rank, attendance summary, class teacher and principal remarks, signatures, school stamp, date | M |
+| FR-RPC-01 | Generate report cards per student, section or grade level as PDF. Two report card types: **Mid Term report card** (Mid Term results) and **Final Term report card** (Final Term results, plus the Mid Term column and the annual result, rank and promotion decision) **[PROPOSED]** (Q-E6) | M |
+| FR-RPC-02 | Contents: school header and logo, student details, subject marks per exam, totals, percentage, grade, rank, term attendance summary, class teacher and principal remarks, signatures, school stamp, date | M |
 | FR-RPC-03 | Report card language: Somali, English or bilingual | M |
 | FR-RPC-04 | Class teacher and principal remarks entered per student, with optional preset comments | S |
 | FR-RPC-05 | Only PUBLISHED results can appear on an official report card | M |
@@ -188,8 +218,8 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | ID | Requirement | P |
 |----|-------------|---|
 | FR-FEE-01 | Fee categories (Tuition, Registration, Exam, Transport, Uniform, Books, …) | M |
-| FR-FEE-02 | Fee structure per grade level per academic year: items with category, amount and frequency (ONE_TIME, MONTHLY, TERMLY, ANNUAL) and due rule | M |
-| FR-FEE-03 | Generate student charges (invoices) from fee structures for a billing period, for all fee-paying active students, with a preview. Running it again for the same period must not create duplicates (idempotent). | M |
+| FR-FEE-02 | Fee structure per grade level per academic year: items with category, amount, frequency (ONE_TIME, MONTHLY, TERMLY, ANNUAL) and due rule. **TERMLY** means charged once per term, i.e. once for **Mid Term** and once for **Final Term**, due a configured number of days after the term starts. **MONTHLY** charges are labelled with the term their month falls in. | M |
+| FR-FEE-03 | Generate student charges (invoices) from fee structures for a billing period (a month, or a term: Mid Term / Final Term), for all fee-paying active students, with a preview. Running it again for the same period must not create duplicates (idempotent). | M |
 | FR-FEE-04 | Ad-hoc charges for an individual student (e.g. lost book, uniform) | M |
 | FR-FEE-05 | Discounts: partial reductions (percentage or fixed) per student per category, e.g. sibling or staff-child discounts | S (Q-F3) |
 | FR-FEE-06 | Waive or void a charge with a reason, an approval and an audit entry. Never hard-delete. | M |
@@ -220,7 +250,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 |----|-------------|---|
 | FR-BAL-01 | A student's balance is the sum of non-void charges minus discounts, minus allocated payments, minus waivers. It is computed from the ledger, never typed in. | M |
 | FR-BAL-02 | Every student has exactly one fee status per period/year: **FREE**, **PAID** (balance = 0 and charges > 0), **PARTIAL** (0 < paid < due), **UNPAID** (paid = 0 and due > 0), plus **CREDIT** when overpaid | M |
-| FR-BAL-03 | Outstanding report by class/section, by student and by aging bucket (0–30, 31–60, 61–90, 90+ days) | M |
+| FR-BAL-03 | Outstanding report by class/section, by student, by term (Mid Term / Final Term) and by aging bucket (0–30, 31–60, 61–90, 90+ days) | M |
 | FR-BAL-04 | Class-based financial report: per section, students, free count, expected, collected, outstanding, collection rate | M |
 | FR-BAL-05 | Student fee statement PDF (all charges, payments and running balance) | M |
 
@@ -272,7 +302,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 ### 2.24 Reports & Analytics (RPT)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-RPT-01 | Report centre listing the reports available to the user's role, with filters (academic year, term, class, section, date range) | M |
+| FR-RPT-01 | Report centre listing the reports available to the user's role, with filters (academic year, term — Mid Term / Final Term, class, section, date range) | M |
 | FR-RPT-02 | Every report can be exported to PDF and Excel | M |
 | FR-RPT-03 | Standard reports: enrolment, attendance, exam results, ranking, report cards, fee collection, outstanding, free students, income/expense, library, inventory, transport, staff attendance | M |
 | FR-RPT-04 | Analytics: trends over time and year-over-year comparisons | S |
