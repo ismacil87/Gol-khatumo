@@ -32,11 +32,13 @@
 | Academic structure | Two **terms** per academic year (not semesters): **Mid Term** and **Final Term** (confirmed, C-01) |
 | Grading | Mid Term and Final Term each calculated independently out of 100%, shown separately; no combined annual result (confirmed, C-02) |
 | Grading scale | 91–100 A+, 85–90 A-, 80–84 B+, 75–79 B, 70–74 C+, 65–69 C, 60–64 D+, 50–59 D, 0–49 F. One exam per subject per term out of 100. Final Term ≥ 50 = PASS (confirmed, C-03) |
-| PASS/FAIL | Overall Final Term percentage across all subjects (total obtained ÷ total possible × 100), exact, no rounding: ≥ 50% PASS, < 50% FAIL. One failed subject does not fail the student (confirmed, C-05) |
+| PASS/FAIL | Both terms: overall percentage across all subjects (total obtained ÷ total possible × 100), exact, no rounding: ≥ 50% PASS, < 50% FAIL. One failed subject does not fail the student (C-05). Mid Term PASS/FAIL is a progress assessment only (C-14) |
 | Promotion | Automatic: PASS → next grade (GRADUATED in the highest grade, C-09), FAIL → repeat the same grade; no approval; outcome recorded and displayed. Mid Term does not decide promotion (C-06). Late joiners → PENDING PLACEMENT, placed by the School Admin with an audited reason (C-10) |
 | Exam absence | ABSENT = automatic 0/100, included in the overall percentage; grades and PASS/FAIL calculated normally; no option to choose another policy (confirmed, C-07 revised) |
 | Marks | 0.00–100.00 with up to two decimal places, e.g. 67.25, 78.50, 90.25; more decimals rejected; no rounding (confirmed, C-08) |
 | Ranking | Exact overall term percentage; ties share a rank with competition ranking 1, 2, 2, 4 (confirmed, C-11) |
+| Student name | Four mandatory parts: First, Father's, Grandfather's, Fourth Name (confirmed, C-12) |
+| Parent/guardian | Full name and phone number mandatory for every student (confirmed, C-13) |
 | Users (v1) | Staff only. Parents and students have no login. |
 | Roles | Platform Super Admin, School Admin, Principal, Accountant, Teacher |
 | Backend | Node.js + Express.js + TypeScript |

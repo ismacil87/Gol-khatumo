@@ -88,8 +88,8 @@ Rules:
 | **GP-7** | Rankings are per exam and per term (Mid Term, Final Term). There is no annual ranking in v1. |
 | **GP-8** | **End-of-year outcome is automatic (C-06):** Final Term overall percentage ≥ 50 → **PASS → PROMOTED** (moves to the next grade), or **GRADUATED** if the student is in the school's highest grade (C-09); < 50 → **FAIL → REPEAT GRADE** (repeats the same grade in the next academic year). No Principal or School Admin approval is needed, and no role can override it. The outcome is recorded and displayed. Mid Term plays no part in it. The only exception is a student who was not enrolled when the Final Term examination took place (**PENDING PLACEMENT**, GP-15). |
 | **GP-9** | No other assessments (monthly tests, coursework, quizzes) and no weighting contribute to a term result in v1. The term's single examination per subject is the term result. |
-| **GP-10** | **PASS/FAIL uses overall marks across all subjects, not individual subjects (C-05):** overall Final Term percentage **≥ 50 → PASS**, **< 50 → FAIL**. A student is **not** failed for scoring below 50 in one or more individual subjects if the overall term percentage is at least 50. Subject grades (including F) are still calculated and shown separately. |
-| **GP-11** | The **Mid Term** result is independent: its overall percentage and grades are calculated the same way, but it has **no PASS/FAIL decision**, is never combined with Final Term, and does not determine promotion or repetition. Its result status is shown as "Mid Term – no PASS/FAIL decision". |
+| **GP-10** | **PASS/FAIL in both terms, from overall marks across all subjects (C-05, C-14):** for **Mid Term and Final Term** alike, overall percentage **≥ 50 → PASS**, **< 50 → FAIL**. A student is **not** failed for scoring below 50 in one or more individual subjects if the overall term percentage is at least 50. Subject grades (including F) are still calculated and shown separately. |
+| **GP-11** | **Mid Term PASS/FAIL is an academic progress assessment only (C-14).** The Mid Term result is calculated the same way (overall percentage, overall grade, PASS/FAIL) and displayed in term results and on the Mid Term report card, but it **never triggers promotion, repetition or graduation**, is never combined with Final Term, and never overrides the Final Term decision. Only the **Final Term** PASS/FAIL decides the end-of-year outcome (C-06, C-09). |
 | **GP-12** | **Exact percentages, no rounding (C-05):** grades and PASS/FAIL are determined from the exact percentage. Internally the comparison uses the exact totals (e.g. PASS when total obtained × 100 ≥ 50 × total possible), so no rounding can change a decision. Displayed percentages are shown to 2 decimals and **truncated, never rounded up**: 349 ÷ 700 = 49.857…% displays as 49.85% and is FAIL; it is never shown as 50%. |
 | **GP-13** | **Subjects taken:** every subject the student was examined in that term counts toward both totals, **including subjects where the student was ABSENT** (0 out of 100, §1.9). Only EXEMPT subjects are excluded from both totals. A student's term result is calculated only when all of their marks (or ABSENT/EXEMPT statuses) are entered. |
 | **GP-14** | **Graduation (C-09):** a student is in the school's highest grade **only when that grade level is explicitly configured as the school's final grade** (`is_final_grade`, set by the School Admin; exactly one per school). A missing "next grade level" is **never** treated as graduation. A student in the configured final grade who PASSES the Final Term receives **GRADUATED**, their student status becomes GRADUATED at rollover, and no next-year enrolment is created. A student in the final grade who FAILS repeats it (REPEAT GRADE). **Configuration check:** Final Term results cannot be published while any grade level in the examination has neither a next grade level nor the final-grade flag. The School Admin is shown which grade levels to configure, so a PASS student is never left without a valid outcome. |
@@ -120,7 +120,7 @@ Rules:
 - **GS-1.** This is the only grading scale in the initial release. It is seeded for Gol Khatumo School as "GKS Official Grading Scale", version 1, and is **read-only** in v1.
 - **GS-2.** The scale applies to subject marks and to overall term percentages, independently for Mid Term and Final Term (GP-4).
 - **GS-3.** The system assigns the grade whose lower bound is the highest one not above the **exact** mark or percentage, with no rounding (C-05). This also applies to decimal marks (C-08), which can fall between two rows of the table: subject mark **90.25 → A-** and **90.5 → A-** (A+ starts at 91), **84.5 → B+**, **64.5 → D+**, **49.5 → F**. Overall: 90.6% → A-, 84.99% → B+, 49.86% → F.
-- **GS-4.** The PASS threshold (50) equals the D/F boundary. PASS/FAIL applies only to the **overall** Final Term percentage (GP-10). A subject grade of F does not by itself cause FAIL.
+- **GS-4.** The PASS threshold (50) equals the D/F boundary. PASS/FAIL applies to the **overall** percentage of each term, Mid Term and Final Term (GP-10, C-14). A subject grade of F does not by itself cause FAIL. Only the Final Term PASS/FAIL decides promotion, repetition or graduation.
 - **GS-5.** The school did not provide grade remarks or grade points. Those optional fields stay empty and are not printed.
 - **GS-6. Future configurability:** an authorised administrator may later be allowed to edit the scale (reserved permission `grading.scale.manage`). Any change creates a new scale version, applies only to terms whose results are not yet published, and is audit-logged. Published results keep the grade and scale version they were calculated with.
 
@@ -167,22 +167,23 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 ### 2.3 Student Management (STU)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-STU-01 | Register a student: admission number (auto or manual, unique per school), names in Somali naming order (given name, father's name, grandfather's name, optional family name), gender, date of birth, place of birth, nationality, address, photo, admission date, previous school, medical notes | M |
+| FR-STU-01 | Register a student: admission number (auto or manual, unique per school); **student name in exactly four mandatory parts: First Name, Father's Name, Grandfather's Name, Fourth Name** (C-12); gender, date of birth, place of birth, nationality, address, photo, admission date, previous school, medical notes; and the **mandatory parent/guardian full name and phone number** (FR-PAR-01, C-13). A student cannot be saved without all four name parts and the guardian contact. | M |
 | FR-STU-02 | Enrol the student in a section for an academic year. One active enrolment per student per year. | M |
 | FR-STU-03 | Student status lifecycle: ACTIVE, SUSPENDED, TRANSFERRED, WITHDRAWN, GRADUATED, with an effective date and reason. Each enrolment also records its end-of-year outcome: PROMOTED, REPEAT_GRADE or GRADUATED (automatic), or PENDING_PLACEMENT followed by the School Admin's placement decision (late joiners). It is shown on the student profile and in the enrolment history. | M |
 | FR-STU-04 | Transfer a student between sections within the same year. Attendance and marks history is kept. | M |
 | FR-STU-05 | Student profile with tabs: details, guardians, enrolment history, attendance summary, results, fees (hidden from roles without finance permission), documents, transport, library loans | M |
 | FR-STU-06 | Search and filter by name, admission number, class/section, status, gender, fee status (paid/unpaid/partial/free) | M |
 | FR-STU-07 | Upload student documents (birth certificate, previous report cards), stored securely | S |
-| FR-STU-08 | Duplicate detection on create: same name and date of birth, or same admission number, triggers a warning | M |
+| FR-STU-08 | Duplicate detection on create: the same four-part name and date of birth triggers a warning; the same admission number is rejected | M |
 | FR-STU-09 | Excel import and export of students (see §2.26) | M |
 | FR-STU-10 | Print a student ID card and a student profile as PDF | C |
 
 ### 2.4 Parent Information Management (PAR)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-PAR-01 | Record guardians: full name, relationship, phone numbers (primary and secondary), occupation, address, national ID (optional), email (optional) | M |
-| FR-PAR-02 | One guardian can be linked to several students (siblings). One student can have several guardians, one of them marked primary. | M |
+| FR-PAR-01 | **Mandatory for every student (C-13):** a primary parent/guardian with **Full Name** and **Phone Number** is captured in the student registration record and cannot be left empty or removed. Without them the student cannot be registered, imported or saved. Validation: full name 2–150 characters, letters, spaces, apostrophes and hyphens; phone number required and valid, accepted in local or international format and stored normalised in international form (E.164). The default country code is **[PROPOSED]** +252 (school setting). Optional extra fields: relationship, secondary phone, occupation, address, national ID, email. | M |
+| FR-PAR-06 | Authorised school staff can see the guardian name and phone on the student profile, class lists and the guardian contact report, to contact parents or guardians when necessary (access in 04 — Roles & Permissions). Changes to guardian contact details are audit-logged. | M |
+| FR-PAR-02 | One guardian can be linked to several students (siblings). One student can have additional guardians besides the mandatory primary guardian. The primary guardian can be **replaced** but never removed without a replacement. | M |
 | FR-PAR-03 | Mark emergency contacts and who may collect the student | S |
 | FR-PAR-04 | Sibling view: all children of a guardian with a combined fee balance (finance roles only) | S |
 | FR-PAR-05 | Guardians have no login in v1. The data model must allow a portal to be added later without migration pain. | M |
@@ -203,7 +204,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-CLS-01 | Define grade levels (classes), e.g. Grade 1 … Grade 12 or Form 1 … Form 4, with display order, level group (primary, intermediate, secondary) and **next grade level**. Exactly one grade level is **explicitly marked as the school's final (highest) grade**; it has no next grade level. Every other grade level must have a next grade level before Final Term results can be published (GP-14, C-09). | M |
 | FR-CLS-02 | Define sections per grade level per academic year (e.g. Grade 5-A) with capacity, room and class teacher | M |
 | FR-CLS-03 | Warn when enrolment exceeds section capacity | S |
-| FR-CLS-04 | Section roster with gender counts; export to Excel and PDF | M |
+| FR-CLS-04 | Section roster with gender counts; export to Excel and PDF. For roles with guardian access, an optional column shows the primary guardian name and phone. | M |
 
 ### 2.7 Subject Management (SUB)
 | ID | Requirement | P |
@@ -255,7 +256,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-MRK-01 | Mark entry grid per exam paper and section. Teachers see only their assigned section and subject combinations. | M |
 | FR-MRK-02 | Validation: mark from **0.00 to 100.00 with up to two decimal places** (e.g. 67.25, 78.50, 90.25) (C-08). Values above 100, below 0 or with more than two decimal places (e.g. 67.255) are **rejected, never rounded**. Record **ABSENT** (automatic 0/100) or **EXEMPT** instead of a score. | M |
 | FR-MRK-03 | Autosave drafts. Show entry progress per paper (entered / total). | S |
-| FR-MRK-04 | Automatically compute per-student results for each term: each subject's mark out of 100, percentage and letter grade; total marks obtained, total possible marks, overall term percentage (exact, C-05) and overall letter grade. **Final Term:** automatic PASS (≥ 50) / FAIL (< 50) from the overall percentage, and the automatic end-of-year outcome (PROMOTED / REPEAT GRADE). **Mid Term:** no PASS/FAIL decision (GP-3, GP-8, GP-10 to GP-13). | M |
+| FR-MRK-04 | Automatically compute per-student results for each term (Mid Term and Final Term): each subject's mark out of 100, percentage and letter grade; total marks obtained, total possible marks, overall term percentage (exact, C-05), overall letter grade and **PASS (≥ 50) / FAIL (< 50)**. **Mid Term** PASS/FAIL is a progress assessment only (C-14). **Final Term** PASS/FAIL also sets the automatic end-of-year outcome (PROMOTED / REPEAT GRADE / GRADUATED) (GP-3, GP-8, GP-10 to GP-15). | M |
 | FR-MRK-05 | The Mid Term result and the Final Term result are computed **independently**. No combined annual result, weighted or otherwise, is computed in v1 (GP-5). | M |
 | FR-MRK-06 | Import marks from Excel per exam (see §2.26) | M |
 | FR-MRK-07 | Mark sheets / broadsheets per section (students × subjects), one per term, to PDF and Excel | M |
@@ -272,8 +273,8 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 ### 2.14 Report Cards (RPC)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-RPC-01 | Generate report cards per student, section or grade level as PDF. Two report card types: **Mid Term report card** (Mid Term results) and **Final Term report card** (Final Term results, grades, rank the PASS/FAIL result status and the **end-of-year outcome** ("Promoted to {next grade}" / "Repeats {grade}" / "Graduated"), with the Mid Term results shown alongside in a separate column for reference). **No combined or annual percentage, grade or rank** appears on either card (GP-5, GP-6). Layout proposed in [09 — Report Card Layout](09-report-card-layout.md), pending approval (Q-E6). | M |
-| FR-RPC-02 | Contents: school header and logo, student details, term label; for each subject the **mark (out of 100), percentage and letter grade**; **total marks obtained / total possible marks**, overall term percentage (2 decimals, truncated), overall letter grade, term rank, **result status** (Final Term: PASS or FAIL plus the end-of-year outcome; Mid Term: "Mid Term – no PASS/FAIL decision"), the grading scale legend, term attendance summary, class teacher and principal remarks, signatures, school stamp, date | M |
+| FR-RPC-01 | Generate report cards per student, section or grade level as PDF. Two report card types: **Mid Term report card** (Mid Term results, grades, rank and PASS/FAIL as a progress assessment, with no outcome) and **Final Term report card** (Final Term results, grades, rank, the PASS/FAIL result status and the **end-of-year outcome** ("Promoted to {next grade}" / "Repeats {grade}" / "Graduated"), with the Mid Term results shown alongside in a separate column for reference). **No combined or annual percentage, grade or rank** appears on either card (GP-5, GP-6). Layout proposed in [09 — Report Card Layout](09-report-card-layout.md), pending approval (Q-E6). | M |
+| FR-RPC-02 | Contents: school header and logo, student details, term label; for each subject the **mark (out of 100), percentage and letter grade**; **total marks obtained / total possible marks**, overall term percentage (2 decimals, truncated), overall letter grade, term rank, **result status** (Mid Term: PASS or FAIL, labelled "academic progress assessment – does not affect promotion"; Final Term: PASS or FAIL plus the end-of-year outcome), the grading scale legend, term attendance summary, class teacher and principal remarks, signatures, school stamp, date | M |
 | FR-RPC-03 | Report card language: Somali, English or bilingual | M |
 | FR-RPC-04 | Class teacher and principal remarks entered per student, with optional preset comments | S |
 | FR-RPC-05 | Only PUBLISHED results can appear on an official report card | M |
@@ -369,7 +370,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 |----|-------------|---|
 | FR-RPT-01 | Report centre listing the reports available to the user's role, with filters (academic year, term — Mid Term / Final Term, class, section, date range) | M |
 | FR-RPT-02 | Every report can be exported to PDF and Excel | M |
-| FR-RPT-03 | Standard reports: enrolment, attendance, exam results, ranking, report cards, fee collection, outstanding, free students, income/expense, library, inventory, transport, staff attendance | M |
+| FR-RPT-03 | Standard reports: enrolment, **parent/guardian contact list per section** (student four-part name, guardian full name, phone; C-13), attendance, exam results, ranking, report cards, fee collection, outstanding, free students, income/expense, library, inventory, transport, staff attendance | M |
 | FR-RPT-04 | Analytics: trends over time and year-over-year comparisons | S |
 | FR-RPT-05 | Super Admin cross-school aggregate statistics (counts only, no personal data) | S |
 
@@ -396,6 +397,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-XLS-07 | Downloadable error report: the original file plus an "Errors" column, so users can fix it and re-upload | M |
 | FR-XLS-08 | Commit is all-or-nothing per import (single transaction, or batched with rollback) and is audit-logged | M |
 | FR-XLS-09 | Export any filtered list to Excel (and CSV), honouring the user's permissions and active filters | M |
+| FR-XLS-10 | **Student import template (C-12, C-13).** Required columns: Admission No. (or auto), **First Name**, **Father's Name**, **Grandfather's Name**, **Fourth Name**, Gender, Date of Birth, Grade, Section, **Parent/Guardian Full Name**, **Parent/Guardian Phone**. Optional: Guardian Relationship, Guardian Secondary Phone, Place of Birth, Nationality, Address, Admission Date, Previous School. Row errors include a missing name part, missing guardian name or phone, and an invalid phone format. **[PROPOSED]** If a guardian with the same normalised phone number already exists, the preview proposes linking the student to that guardian (siblings) instead of creating a duplicate, and the user confirms. The guardians template remains available for additional guardians. | M |
 
 ### 2.27 PDF reporting (PDF), cross-cutting
 | ID | Requirement | P |

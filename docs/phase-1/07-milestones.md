@@ -57,7 +57,9 @@ A phase is complete only when **all** of the following hold:
 
 **Acceptance criteria**
 - Admit a student with guardians, enrol them in a section, transfer them to another section, change status to WITHDRAWN with a reason. History shows every step.
-- Duplicate admission number is rejected. Same name + DOB shows a warning.
+- Duplicate admission number is rejected. The same four-part name + DOB shows a warning.
+- **Four-part name (C-12):** registration without any one of First Name, Father's Name, Grandfather's Name or Fourth Name is rejected with a field-level error, in the UI, the API and at database level.
+- **Mandatory guardian (C-13):** registration without the guardian full name or phone is rejected, as is an invalid phone. Local formats are normalised to E.164. Removing the primary guardian without a replacement is rejected. Guardian name and phone are visible to School Admin, Principal, Accountant and to Teachers of the student's section; Super Admin is denied. Contact changes appear in the audit log. The guardian contact list exports to PDF and Excel.
 - A teacher sees only students of assigned sections (verified once assignments exist; stubbed by class teacher in this phase). An accountant sees basic student data but cannot edit it.
 - Upload rejects a renamed `.exe` as `.jpg` (magic-byte check). Photos are re-encoded without EXIF.
 - Filtered student list exports to .xlsx with the same rows as the screen.
@@ -84,7 +86,8 @@ A phase is complete only when **all** of the following hold:
   - Marks 45, 50, 54 → 149/300 = 49.666…% (shown 49.66%) → **FAIL**.
   - 7 subjects, 350/700 = 50.00% → **PASS**; 349/700 = 49.857…% → **FAIL**, displayed as 49.85% (truncated), never as 50%.
   - EXEMPT subjects are excluded from both totals. ABSENT counts as 0/100 and is included: marks 67.5, 55 and one ABSENT give 122.5/300 = 40.83% → FAIL.
-  - Mid Term shows "no PASS/FAIL decision". A student below 50% overall in Mid Term but ≥ 50% overall in Final Term is PASS, and the reverse is FAIL.
+  - **Mid Term PASS/FAIL (C-14):** Mid Term 155/300 → PASS and 149/300 → FAIL, calculated exactly like Final Term. A Mid Term FAIL **never** creates REPEAT GRADE, and a Mid Term PASS never creates PROMOTED or GRADUATED; outcomes are produced only when Final Term is published.
+  - Combinations: Mid Term FAIL + Final Term PASS → PROMOTED; Mid Term PASS + Final Term FAIL → REPEAT GRADE. No combined or annual figure is calculated.
 - **Automatic outcome (C-06):** publishing Final Term sets PROMOTED for every PASS and REPEAT GRADE for every FAIL, with no approval step. Outcomes appear on the student profile, the rollover preview and the Final Term report card. No role can override them: tests assert that the API has no endpoint for it and that attempts are rejected. Correcting Final Term marks through unlock → re-publish recalculates the outcome, audit-logged.
 - **Graduation (C-09):**
   - In the grade level explicitly marked `is_final_grade`, PASS → GRADUATED, with no next-year enrolment and student status GRADUATED after rollover. FAIL → REPEAT GRADE.
@@ -111,7 +114,7 @@ A phase is complete only when **all** of the following hold:
 - Teachers can enter marks only for assigned subject × section, and only during MARKS_ENTRY.
 - Publishing produces snapshots. Editing marks afterwards requires unlock (audited) and re-publish. Published ranks never change silently.
 - **Ranking ties (C-11):** with exact overall percentages 91.50, 88.00, 88.00 and 80.25, the ranks are **1, 2, 2, 4**. Two students who both display 78.83% (78.833…% and 78.834%) are **not** tied; the higher exact value ranks first. The same results appear in section and grade-level ranks, Mid Term and Final Term, and every term ranking report. Students with incomplete marks or PENDING PLACEMENT are not ranked. All fixtures are hand-calculated.
-- Mid Term and Final Term report card PDFs for a class render in Somali and in English with the correct term label; for each subject the mark, percentage and letter grade; term total, percentage, overall grade, rank, result status (Final Term PASS/FAIL; Mid Term "no PASS/FAIL decision"), grading scale legend and term attendance. The Final Term report card shows the Mid Term results in a separate column, with no combined or annual figure.
+- Mid Term and Final Term report card PDFs for a class render in Somali and in English with the correct term label; for each subject the mark, percentage and letter grade; term total, percentage, overall grade, rank, result status (Mid Term PASS/FAIL labelled as a progress assessment; Final Term PASS/FAIL with the end-of-year outcome), grading scale legend and term attendance. The Final Term report card shows the Mid Term results in a separate column, with no combined or annual figure.
 
 ### Phase 7 — Finance & fee management
 **Deliverables:** fee categories and structures, charge generation (preview, idempotent), ad-hoc charges, discounts, waivers with approval, billing profiles (FREE / FEE_PAYING) with approval and history, payments with allocation and credit, receipt numbering and **receipt PDF**, payment void/refund (maker-checker), outstanding balances and aging, class financial report, free student register, finance accounts, income/expenses with approval, daily cash report, fee statement PDF.
@@ -137,6 +140,7 @@ A phase is complete only when **all** of the following hold:
 **Deliverables:** import engine (templates, validate, preview, duplicates, row errors, error report download, commit) for students, guardians, staff, fee structures, opening balances and marks; full PDF catalogue (02 §8.3) with shared layout kit; report centre with filters and PDF/Excel output; analytics charts; bulk PDF jobs with progress.
 
 **Acceptance criteria**
+- **Student template (FR-XLS-10):** rows missing any of the four name parts, the guardian full name or the guardian phone (or with an invalid phone) are listed as row-level errors and nothing is saved. A guardian phone matching an existing guardian is offered as a sibling link in the preview.
 - Each template downloads in Somali and English and re-imports without errors when filled with valid data.
 - A test file with known errors (missing required fields, invalid dates, unknown section, duplicate admission numbers within the file and against the DB) yields exactly the expected row-level errors. The downloadable error report contains them.
 - Nothing is saved before confirmation. A failed commit leaves no partial data.

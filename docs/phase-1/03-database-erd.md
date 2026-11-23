@@ -253,6 +253,7 @@ erDiagram
   STUDENT ||--o{ ENROLLMENT : "enrolled via"
   SECTION ||--o{ ENROLLMENT : "contains"
   ACADEMIC_YEAR ||--o{ ENROLLMENT : "scopes"
+  STUDENT }o--|| GUARDIAN : "primary guardian (mandatory)"
   STUDENT ||--o{ STUDENT_GUARDIAN : "has"
   GUARDIAN ||--o{ STUDENT_GUARDIAN : "responsible for"
   STUDENT ||--o{ STUDENT_STATUS_HISTORY : "lifecycle"
@@ -264,10 +265,11 @@ erDiagram
   STUDENT {
     string id PK
     string admission_no UK "per school"
-    string first_name "given name"
-    string middle_name "father's name"
-    string last_name "grandfather's name"
-    string family_name "optional"
+    string first_name "required (C-12)"
+    string father_name "required"
+    string grandfather_name "required"
+    string fourth_name "required"
+    string primary_guardian_id FK "required (C-13)"
     string gender "MALE|FEMALE"
     date date_of_birth
     string place_of_birth
@@ -299,8 +301,8 @@ erDiagram
   }
   GUARDIAN {
     string id PK
-    string full_name
-    string phone_primary "E.164"
+    string full_name "required (C-13)"
+    string phone_primary "required, E.164 (C-13)"
     string phone_secondary
     string email
     string occupation
@@ -311,7 +313,6 @@ erDiagram
     string student_id PK
     string guardian_id PK
     string relationship "FATHER|MOTHER|UNCLE|..."
-    boolean is_primary
     boolean is_emergency_contact
     boolean can_pick_up
   }
@@ -370,6 +371,8 @@ erDiagram
     string uploaded_by_id FK
   }
 ```
+
+**Mandatory name and guardian (C-12, C-13):** `first_name`, `father_name`, `grandfather_name` and `fourth_name` are `NOT NULL` with a non-empty check. `student.primary_guardian_id` is `NOT NULL`, with a composite FK `(school_id, primary_guardian_id)` → `guardian (school_id, id)`. `guardian.full_name` and `guardian.phone_primary` are `NOT NULL` with non-empty checks. The database itself therefore makes it impossible to store a student without a four-part name and a guardian name and phone. The primary guardian also has a `student_guardian` row (relationship, emergency contact). Additional guardians are optional rows. A guardian referenced as anyone's primary guardian cannot be deleted. Guardian contact changes are audit-logged.
 
 **Invariant:** `UNIQUE (school_id, student_id, academic_year_id)` on `enrollment`, where status is not `TRANSFERRED_OUT`. A section transfer closes the old enrolment and opens a new one (enforced in the service, with a partial-uniqueness surrogate column if needed). Attendance, marks and charges reference the **enrolment**, so history follows the student correctly across sections and years.
 
@@ -496,7 +499,7 @@ erDiagram
     string id PK
     string name "GKS Official Grading Scale"
     int version "1"
-    decimal pass_threshold "50, applied to Final Term only"
+    decimal pass_threshold "50, applied to both terms (C-14)"
     boolean is_default
     boolean is_editable "false in v1"
     string status "ACTIVE|ARCHIVED"
@@ -525,7 +528,7 @@ erDiagram
     int rank_in_section "competition ranking 1,2,2,4"
     int rank_in_grade "competition ranking 1,2,2,4"
     int section_size
-    string result_status "PASS|FAIL (Final Term) or NOT_APPLICABLE (Mid Term)"
+    string result_status "PASS|FAIL for both terms (C-14)"
     string end_of_year_outcome "PROMOTED|REPEAT_GRADE|GRADUATED (Final Term only)"
     string grading_scale_id FK
     int grading_scale_version
@@ -558,7 +561,7 @@ Rules:
 - **One examination per term (v1):** `UNIQUE (school_id, term_id)` on `exam`; `UNIQUE (school_id, exam_id, grade_level_id, subject_id)` on `exam_paper`; `max_marks = 100` (check constraint); `0 ≤ score ≤ 100` (check constraint).
 - **Official grading scale (seeded, C-03):** `grading_scale` "GKS Official Grading Scale" v1, `pass_threshold = 50`, `is_editable = false`, with `grade_band` rows (min → grade): 91 A+, 85 A-, 80 B+, 75 B, 70 C+, 65 C, 60 D+, 50 D, 0 F. The grade is the band with the highest `min_percent` ≤ the percentage (see Requirements §1.8 GS-3 and Q-E8 for non-whole percentages).
 - **Overall percentage (C-05):** `total_score` = sum of marks obtained across all subjects examined in the term (decimals kept exactly); `total_max` = sum of possible marks across those subjects (100 each). **ABSENT counts as 0 out of 100 and is included in both totals** (C-07). Only EXEMPT subjects are excluded.
-- **Result status (C-05):** Final Term `result_status = PASS` when `total_score × 100 ≥ pass_threshold × total_max`, else `FAIL`. This compares the exact totals, so there is no rounding. Individual subject grades never decide PASS/FAIL. For the Mid Term snapshot, `result_status = NOT_APPLICABLE`. Mid Term never affects the Final Term status or the outcome.
+- **Result status (C-05, C-14):** for **both** Mid Term and Final Term snapshots, `result_status = PASS` when `total_score × 100 ≥ pass_threshold × total_max`, else `FAIL`. This compares the exact totals, so there is no rounding. Individual subject grades never decide PASS/FAIL. The Mid Term status is a progress assessment only: it is never read by the outcome logic. `end_of_year_outcome` exists only on Final Term snapshots and is derived only from the Final Term `result_status`.
 - **Grade from exact percentage:** the overall grade uses the same exact comparison against each band's `min_percent` (`total_score × 100 ≥ min_percent × total_max`). `percentage` is stored for display and reporting only and is never used for decisions.
 - **End-of-year outcome (C-06), automatic:** when the Final Term exam is published, `end_of_year_outcome` is set on each Final Term snapshot: PASS → `PROMOTED`, or `GRADUATED` **only** when the student's grade level has `is_final_grade = true` (C-09); FAIL → `REPEAT_GRADE`. It is copied to `enrollment.outcome` (`outcome_source = AUTOMATIC`, `outcome_snapshot_id`) by the system actor, with an audit entry. No approval step exists, and no API lets a user set or override an automatic outcome. A GRADUATED student gets no next-year enrolment, and their `student.status` becomes `GRADUATED` at rollover.
 - **Final grade configuration (C-09):** `grade_level.is_final_grade` is set explicitly by the School Admin. Constraints: at most one `is_final_grade = true` per school (unique partial index via a generated column); `is_final_grade = true` ⇒ `next_grade_level_id IS NULL`. Publishing a Final Term exam is **rejected** (`GRADE_PROGRESSION_NOT_CONFIGURED`, listing the grade levels) if any grade level in it has `is_final_grade = false` and `next_grade_level_id IS NULL`, and also if the school has no final grade configured. A missing next grade is therefore a configuration error, never a graduation.
@@ -935,8 +938,8 @@ erDiagram
 - **Background job state** is held in BullMQ (Redis). Only business-relevant job records (imports, bulk PDF exports) are persisted in MySQL.
 
 ## 11. Indexing & performance notes
-- Every tenant table: `INDEX (school_id, <most common filter>)`, e.g. `students (school_id, status, last_name)`, `fee_charges (school_id, enrollment_id, status)`, `payments (school_id, paid_on)`, `student_attendance (school_id, date)`.
-- Name search: a generated column `search_name` (concatenated, lower-cased) with an index, which supports prefix search. FULLTEXT is used only if needed.
+- Every tenant table: `INDEX (school_id, <most common filter>)`, e.g. `students (school_id, status, first_name)`, `guardians (school_id, phone_primary)`, `fee_charges (school_id, enrollment_id, status)`, `payments (school_id, paid_on)`, `student_attendance (school_id, date)`.
+- Name search: a generated column `search_name` (the four name parts concatenated, lower-cased) with an index, which supports prefix search. FULLTEXT is used only if needed.
 - Reporting queries (outstanding by class, collection by month) use covering indexes. Heavy reports can later read from a replica.
 - Expected volume per school per year (3,000 students): attendance ≈ 3,000 × 200 days = 600k rows; marks ≈ 3,000 × 10 subjects × 2 exams (Mid Term, Final Term) = 60k rows; charges ≈ 3,000 × 12 months = 36k rows. Across 100 schools this is comfortable for a single MySQL primary with proper indexing. Attendance is the table to watch; partitioning by year is an option later.
 

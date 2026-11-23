@@ -280,6 +280,7 @@ sequenceDiagram
 
 Design points:
 - **Template registry:** each import type (students, guardians, staff, fee structures, opening balances, exam marks) is declared once: columns, localized header names (Somali/English, both accepted on upload), Zod row schema, reference resolvers (e.g. section name → section ID) and a duplicate key. Templates, validation, preview and error reports are all generated from that single definition, which avoids duplicated code.
+- **Student template:** the columns are specified in FR-XLS-10: four mandatory name parts (C-12) and mandatory parent/guardian full name and phone (C-13), validated like the registration form.
 - **Parsing:** SheetJS reads `.xlsx`, `.xls` and `.csv`. Header row detection matches Somali or English headers case-insensitively. Dates are normalized from Excel serial numbers and text formats. Phone numbers are normalized to E.164 (e.g. `+252…`).
 - **Safety:** max file size 5 MB, max 5,000 rows, magic-byte check, no macros (`.xlsm` rejected), formula cells read as values only. CSV export escapes cells starting with `= + - @ \t \r` to prevent **formula injection**.
 - **Validation stages:** (1) structural (headers present), (2) row schema (types, required, enums), (3) referential (section exists in the current year), (4) business rules (capacity, FREE students cannot have opening balances), (5) duplicates within the file and against the database.
@@ -314,7 +315,7 @@ Report request → permission check → data query (tenant-scoped, read-only)
 - **Official documents:** receipts and report cards can embed a verification code and QR (FR-PDF-07, could-have).
 
 ### 8.3 Standard PDF catalogue (v1)
-Receipt · Student fee statement · Outstanding balances by class · Class financial summary · Free student register · Daily cash report · Income/expense report · Mid Term report card · Final Term report card (Mid Term and Final Term shown separately, no combined result) · Mark sheet / broadsheet (per term) · Ranking list (Mid Term / Final Term) · Section roster · Attendance register (monthly) and term attendance summary · Staff attendance report · Timetable (section/teacher) · Exam schedule (per term) · Library overdue list · Inventory stock report · Transport route roster · Student profile.
+Receipt · Student fee statement · Outstanding balances by class · Class financial summary · Free student register · Daily cash report · Income/expense report · Mid Term report card · Final Term report card (Mid Term and Final Term shown separately, no combined result) · Mark sheet / broadsheet (per term) · Ranking list (Mid Term / Final Term) · Section roster · Parent/guardian contact list · Attendance register (monthly) and term attendance summary · Staff attendance report · Timetable (section/teacher) · Exam schedule (per term) · Library overdue list · Inventory stock report · Transport route roster · Student profile.
 
 ## 9. Localization (Somali / English)
 

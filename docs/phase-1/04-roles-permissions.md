@@ -41,7 +41,7 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
 | Subjects/assignments | `subjects.read`, `subjects.manage`, `assignments.manage` |
 | Timetable | `timetable.read`, `timetable.manage` |
 | Students | `students.read`, `students.create`, `students.update`, `students.status.change`, `students.transfer`, `students.medical.read`, `students.documents.manage`, `students.export` |
-| Guardians | `guardians.read`, `guardians.manage` |
+| Guardians | `guardians.read` (includes the mandatory guardian name and phone), `guardians.manage`, `guardians.export` (guardian contact list) |
 | Staff | `staff.read`, `staff.manage`, `staff.sensitive.read` (salary, national ID), `staff.export` |
 | Student attendance | `attendance.read`, `attendance.take`, `attendance.edit_locked` |
 | Staff attendance | `staff_attendance.read`, `staff_attendance.record`, `staff_leave.approve` |
@@ -77,7 +77,7 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Academic years, terms, calendar | — | F | F | R | R |
 | Year-end rollover (run placement) | — | F | F | — | — |
 | Placement decision for PENDING PLACEMENT (late joiners) | — | F (reason required, audited) | — | — | — |
-| PASS/FAIL and promotion/repetition outcome: view | — | R | R | R | S (R) |
+| Mid Term and Final Term PASS/FAIL and promotion/repetition outcome: view | — | R | R | R | S (R) |
 | PASS/FAIL and promotion/repetition outcome: approve or override | — | — (automatic, C-06) | — (automatic) | — | — |
 | Grade levels & sections | — | F | F | R | S (R) |
 | Configure next grade level and the final (highest) grade flag | — | F | R | — | — |
@@ -87,6 +87,9 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Students: create/edit/transfer/status | — | F | F | — | — |
 | Students: medical notes | — | F | F | — | S (R) **[PROPOSED]** |
 | Guardians / parent info | — | F | F | R (contact) | S (R, contact) |
+| Primary guardian name & phone (mandatory, C-13): view | — | F | F | R | S (R, assigned sections) |
+| Primary guardian name & phone: edit / replace | — | F | F | — | — |
+| Guardian contact list report / export | — | F | F | R | S (own sections) |
 | Staff records | — | F | R | R (basic) | O |
 | Staff sensitive data (salary, ID) | — | F | — | R | — |
 | Student attendance: take | — | F | F | — | S |

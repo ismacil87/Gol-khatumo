@@ -6,8 +6,8 @@
 |---|--------|---------|----------------------|-----------|-------------|
 | 1 | **Dashboard** | Role-specific overview and KPIs; entry point after login | none (read models only) | All modules (read) | 3 (shell), extended each phase |
 | 2 | **School & Academic Year** | Tenant profile, settings, academic years and their two terms (Mid Term, Final Term), calendar, rollover | School, SchoolSettings, AcademicYear, Term, CalendarEvent | Platform/IAM | 2–3 (school), 5 (years) |
-| 3 | **Student Management** | Admission, profile, lifecycle, enrolment, transfers | Student, Enrollment, StudentStatusHistory, StudentDocument | 2, 6, 25 | 4 |
-| 4 | **Parent Information** | Guardians and their links to students (no login) | Guardian, StudentGuardian | 3 | 4 |
+| 3 | **Student Management** | Admission (four-part name, mandatory guardian contact), profile, lifecycle, enrolment, transfers | Student, Enrollment, StudentStatusHistory, StudentDocument | 2, 6, 25 | 4 |
+| 4 | **Parent Information** | Guardians (name and phone mandatory for every student) and their links to students (no login) | Guardian, StudentGuardian | 3 | 4 |
 | 5 | **Teacher & Staff** | Staff records, qualifications, documents, optional user link | Staff, StaffQualification, StaffDocument | 2, 25 | 4 |
 | 6 | **Class & Section** | Grade levels and yearly sections, class teachers, rosters | GradeLevel, Section | 2, 5 | 4 (basic, needed for enrolment), 5 (full) |
 | 7 | **Subject** | Subject catalogue, curriculum per grade, teaching assignments | Subject, CurriculumSubject, TeachingAssignment | 5, 6 | 5 |
@@ -15,7 +15,7 @@
 | 9 | **Student Attendance** | Daily attendance per section | AttendanceSession, StudentAttendance | 3, 6, 7 (teacher scope), 2 (calendar) | 5 |
 | 10 | **Teacher Attendance** | Staff daily attendance and leave | StaffAttendance, StaffLeave | 5, 2 | 5 |
 | 11 | **Examination** | One examination per term (Mid Term, Final Term) with one paper per subject out of 100, schedule, lifecycle, official grading scale (read-only in v1) | Exam, ExamPaper, GradingScale, GradeBand | 2, 6, 7 | 6 |
-| 12 | **Marks & Results** | Mark entry and automatic computation of percentages and letter grades; Mid Term and Final Term results, each independent and out of 100%; automatic PASS/FAIL from the overall Final Term percentage across all subjects, and the automatic end-of-year outcome (promoted / repeat grade) | Mark, ResultSnapshot | 11, 3 | 6 |
+| 12 | **Marks & Results** | Mark entry and automatic computation of percentages and letter grades; Mid Term and Final Term results, each independent and out of 100%; automatic PASS/FAIL for both terms from the overall percentage across all subjects (Mid Term: progress only), and the automatic end-of-year outcome from Final Term (promoted / repeat grade) | Mark, ResultSnapshot | 11, 3 | 6 |
 | 13 | **Student Ranking** | Section and grade ranks per exam and per term (Mid Term, Final Term), top-N lists | (part of ResultSnapshot) | 12 | 6 |
 | 14 | **Report Cards** | Official Mid Term and Final Term report card PDFs with remarks; both term results shown separately | ReportCardRemark | 12, 13, 9 (attendance summary), PDF engine | 6 (+ PDF polish in 9) |
 | 15 | **Fees & Fee Structures** | Fee categories, structures per grade/year, charge generation, discounts, waivers | FeeCategory, FeeStructure, FeeStructureItem, ChargeRun, FeeCharge, StudentDiscount, ChargeAdjustment | 2, 3, 6, 17 | 7 |
@@ -93,7 +93,7 @@ stateDiagram-v2
     [*] --> MT_Run
     MT_Run: Mid Term — attendance · Mid Term fee charges · payments · Mid Term exams → marks
     MT_Run --> MT_Pub: Publish Mid Term results & ranking
-    MT_Pub: Mid Term report cards (result out of 100%)
+    MT_Pub: Mid Term report cards (result out of 100% · PASS/FAIL as progress assessment only)
   }
   MidTerm --> FinalTerm: Mid Term closed
   state FinalTerm {

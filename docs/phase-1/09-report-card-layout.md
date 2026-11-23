@@ -20,7 +20,7 @@
 │              WARQADDA NATIIJADA ARDAYGA  /  STUDENT REPORT CARD                        │
 │                     FINAL TERM  ·  Sannad-dugsiyeedka / Academic Year 2026–2027       │
 ├──────────────────────────────────────────────────────────────────────────────────────┤
-│ Magaca / Name: Amina Ahmed Ali              Lambarka / Admission No.: GK-2024-0137    │
+│ Magaca / Name: Amina Ahmed Ali Hassan       Lambarka / Admission No.: GK-2024-0137    │
 │ Fasalka / Grade: Grade 5   Qaybta / Section: A   Roll No.: 12   Sex: F                │
 ├──────────────────────────────────────────────────────────────────────────────────────┤
 │                         │      FINAL TERM (this term)       │ MID TERM (reference only │
@@ -37,6 +37,7 @@
 │ Wadarta / Total          │ 458.50 / 700                      │ 511.75 / 700             │
 │ Boqolley / Overall %     │ 65.50 %                           │ 73.10 %                  │
 │ Darajo / Overall grade   │ C                                 │ C+                       │
+│ Natiijada / Result       │ PASS                              │ PASS (progress only)     │
 │ Kaalinta / Rank          │ Section: 4 of 32 · Grade: 11 of 95│ (Mid Term rank on the    │
 │                          │                                   │  Mid Term card)          │
 ├──────────────────────────┴───────────────────────────────────┴──────────────────────────┤
@@ -52,7 +53,7 @@
 ├──────────────────────────────────────────────────────────────────────────────────────┤
 │ Grading scale: A+ 91–100 · A- 85–90 · B+ 80–84 · B 75–79 · C+ 70–74 · C 65–69 ·        │
 │                D+ 60–64 · D 50–59 · F 0–49.  PASS = Final Term overall ≥ 50%.          │
-│                ABSENT = 0/100, included in the total.                                   │
+│                ABSENT = 0/100, included in the total. Mid Term PASS/FAIL = progress only.│
 ├──────────────────────────────────────────────────────────────────────────────────────┤
 │ Macallinka fasalka /        Maamulaha /               Waalidka /          [SCHOOL       │
 │ Class teacher               Principal                 Parent/Guardian      STAMP]       │
@@ -64,14 +65,14 @@
 
 **Example figures (illustrative student and subjects; the real subject list comes from the curriculum):**
 - Final Term total: 78.50 + 67.25 + 85.00 + 90.25 + 49.50 + 88.00 + 0 = **458.50 / 700 = 65.50% → C, PASS**. Science (F) and the ABSENT subject (F) do not cause FAIL, because the overall percentage is ≥ 50 (C-05, C-07).
-- Mid Term reference: 511.75 / 700 = 73.107…% → **displayed 73.10%** (truncated) → C+. It is shown for reference only and has no effect on the result or outcome (C-02, C-06).
+- Mid Term reference: 511.75 / 700 = 73.107…% → **displayed 73.10%** (truncated) → C+, **PASS (progress assessment only)**. It is shown for reference only and has no effect on the Final Term result or the outcome (C-02, C-06, C-14).
 - 90.25 → A- (A+ starts at 91), per the exact-value rule (C-08).
 
 ## 3. Mid Term report card: differences from the Final Term card
 - Title: "FINAL TERM" is replaced by **"MID TERM"**.
 - One results block only (Mid Term marks, %, grade). There is no reference column.
 - Rank: the Mid Term section and grade ranks.
-- Result line: **"Mid Term – no PASS/FAIL decision"** (C-03). There is **no** end-of-year outcome line.
+- Result line: **"NATIIJADA / RESULT: PASS"** (or FAIL) with the note **"Academic progress assessment – does not affect promotion"** (C-14). There is **no** end-of-year outcome line.
 - Attendance: Mid Term attendance counts.
 - Grading legend, remarks, signatures and footer as on the Final Term card.
 
@@ -82,17 +83,18 @@
 | Header | Logo, school name (Somali and English), address, phone, email, registration number, motto | School profile (FR-SCH-03) |
 | Header | Student photo | Student record. Placeholder box if there is no photo. |
 | Title | Card type, term label, academic year | Term (C-01) |
-| Student | Full name, admission number, grade, section, roll number, sex | Student and enrolment. The name is printed as recorded; the name structure is still open (Q-ST1). |
+| Student | Full four-part name (First, Father's, Grandfather's, Fourth Name), admission number, grade, section, roll number, sex | Student and enrolment (C-12) |
 | Results | Subject, marks /100 (2 decimals), percentage, letter grade | `result_snapshot.subject_breakdown` (C-03, C-08) |
 | Results | ABSENT subject | Printed as "ABSENT – 0/100", grade F (C-07) |
 | Results | EXEMPT subject | Printed as "EXEMPT", excluded from totals (GP-13) |
 | Summary | Total obtained / total possible, overall %, overall grade | Snapshot totals (C-05). % truncated to 2 decimals |
 | Summary | Rank in section and rank in grade ("4 of 32") | Competition ranking 1, 2, 2, 4 (C-11). Omitted for unranked students |
-| Result | Final Term: PASS / FAIL. Mid Term: "no PASS/FAIL decision" | `result_status` (C-03, C-05) |
+| Result | PASS / FAIL on both cards. Mid Term labelled "academic progress assessment – does not affect promotion" | `result_status` (C-05, C-14) |
 | Outcome (Final Term only) | "Promoted to {next grade}", "Repeats {grade}", "Graduated" | `enrollment.outcome` (C-06, C-09) |
 | Attendance | School days, present, late, absent, excused for the term | Attendance records within the term (FR-SAT-06). An attendance-percentage line can be added once its formula is agreed. |
 | Remarks | Class teacher's remark, principal's remark | `report_card_remark` (FR-RPC-04) |
 | Legend | Official grading scale, PASS rule, ABSENT rule | Grading scale version used by the snapshot (GS-6) |
+| Guardian (optional, decision 9) | Primary guardian name and phone (C-13) | Student record |
 | Signatures | Class teacher, principal, parent/guardian; school stamp area | Optional scanned signature and stamp images from school settings |
 | Footer | Issue date, document number, page, optional QR verification code | FR-PDF-07 (could-have) |
 
@@ -113,3 +115,4 @@
 6. Include the **QR verification code** now or later?
 7. Language: bilingual (proposed), Somali only, or English only?
 8. Confirm the Somali label wording, or provide preferred wording.
+9. Print the **parent/guardian name and phone** (mandatory student data, C-13) in the student block: yes or no?
