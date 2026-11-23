@@ -7,6 +7,7 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | ID | Decision | Effect on the documentation |
 |----|----------|-----------------------------|
 | C-01 | **Academic structure: two TERMS per academic year, not semesters.** Official labels: **1. Mid Term**, **2. Final Term**. No third term. | Requirements §1.6 (AS-1 to AS-6), FR-SCH-05/07, attendance, exams, results, ranking, report cards and fees use the two-term structure. ERD: `term.code` = `MID_TERM` / `FINAL_TERM`, `school_settings.term_template`, `fee_charge.term_id`. Module lifecycle and milestone acceptance criteria updated. Terms are stored as data per academic year (configurable for future years); the initial configuration contains exactly Mid Term and Final Term. |
+| C-02 | **Grading and term results policy.** Mid Term and Final Term are each calculated independently on a 100% scale, with their own results and final grade (each subject's term result is out of 100). No combined annual result with any weighting, and the Final Term alone is not the annual result. Both term results are displayed separately. A future annual result policy may be configured by an authorised School Admin only after formal school approval. | Requirements §1.7 (GP-1 to GP-9), FR-EXM-01/05, FR-MRK-04/05/07/08, FR-RNK-01, FR-RPC-01/02, FR-SCH-07. ERD: `result_snapshot` scope limited to EXAM/TERM (YEAR reserved), new reserved `annual_result_policy` (mode `NONE`). Reserved permission `results.annual_policy.manage`. Lifecycle diagram, PDF catalogue and Phase 6 acceptance criteria updated. Previous proposal of a 50/50 annual weighting withdrawn. |
 
 ## 1. Technical decisions for approval
 
@@ -46,11 +47,11 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | Q-AY1 | Somali wording of the term labels | Use the official labels "Mid Term" and "Final Term" unchanged in both languages, unless the school provides official Somali labels |
 | Q-AY2 | Typical term dates | Please give the usual start and end dates of Mid Term and Final Term, so they can pre-fill each new academic year |
 | Q-E1 ★ | Which exams are held in each term (Mid Term and Final Term)? | Please describe, e.g. "Mid Term: 2 monthly tests + 1 term examination; Final Term: 2 monthly tests + 1 final examination". The two-term structure is confirmed (C-01); only the exams inside each term remain open. |
-| Q-E2 ★ | How are term and annual results calculated? | Each term result (Mid Term, Final Term) = weighted average of that term's exam percentages (weights per exam type). Annual result = **50% Mid Term + 50% Final Term** unless you give other weights (e.g. 40/60). |
+| Q-E2 ★ | How do the assessments *within* one term make up that term's 100 marks? | Term results are independent and out of 100 (C-02); no annual combination. Open point only: if a term has several assessments (e.g. monthly tests + term examination), give their marks or percentages, e.g. 20 + 20 + 60 = 100. If a term has a single examination out of 100, no composition is needed. |
 | Q-E3 ★ | Ranking rules | Rank by overall percentage over ranking subjects; ties share a rank (1, 2, 2, 4); a student ABSENT for a paper gets 0 for that paper; students with *missing* entries are not ranked until complete; EXEMPT subjects are excluded from that student's total and maximum |
 | Q-E4 ★ | Grading scale | Please provide it, e.g. A 90–100, B 80–89, C 70–79, D 60–69, E 50–59, F < 50; pass mark 50% |
-| Q-E5 | Pass/fail and promotion rule | Pass overall if the **annual** percentage (Mid Term + Final Term) ≥ pass mark. Promotion is decided by the Principal at rollover after Final Term, with the system's suggestion. |
-| Q-E6 | Report card types, language and layout | Two report cards per year: **Mid Term report card**, and **Final Term report card** showing Final Term results, the Mid Term column and the annual result and rank. Bilingual labels by default. Please share any current report card so its layout can be matched. |
+| Q-E5 | Pass/fail and promotion rule | Pass/fail is determined **per term** (term percentage ≥ pass mark). Promotion is decided manually by the Principal/School Admin at rollover, with Mid Term and Final Term results shown side by side. The system makes no combined calculation. Please describe any formal promotion criteria. |
+| Q-E6 | Report card types, language and layout | Two report cards per year: **Mid Term report card**, and **Final Term report card** showing Final Term results with the Mid Term results in a separate column (no combined or annual figure). Bilingual labels by default. Please share any current report card so its layout can be matched. |
 
 ### Finance
 | ID | Question | Proposed default |
@@ -100,7 +101,8 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | R-01 | Cross-school data leak via a missed tenant filter | Medium | Critical | Five isolation layers; composite FKs; automated isolation test for every route; code review checklist |
 | R-02 | Unreliable internet at schools causes failed or double submissions | High | High | Idempotency keys; retry-safe TanStack mutations; small bundles; autosave for mark entry; offline PWA later |
 | R-03 | Financial errors (wrong balances, duplicate receipts) damage trust | Medium | Critical | Ledger-derived balances; DB constraints; row locks; hand-calculated test scenarios; maker–checker; audit |
-| R-04 | Exam and ranking rules differ from school practice | High | High | Confirm Q-E1–E5 before Phase 6; configurable weights and scales; fixtures validated with the school |
+| R-04 | Exam and ranking rules differ from school practice | Medium | High | Grading policy confirmed (C-02); confirm Q-E1–E5 before Phase 6; configurable scales; fixtures validated with the school |
+| R-15 | An unapproved annual calculation is introduced by mistake (e.g. Final Term treated as annual) | Low | High | Policy fixed to `NONE` in v1; explicit negative tests in Phase 6; any future policy requires recorded formal approval and an audit log |
 | R-05 | Poor Somali translation quality | Medium | Medium | Native reviewer (Q-G6); glossary of school terms; context notes for translators |
 | R-06 | PDF rendering resource use (Chromium) | Medium | Medium | Dedicated worker tier; queue with concurrency limits; warm browser pool; timeouts |
 | R-07 | Scope creep across 25 modules | High | High | Phase gates; MoSCoW priorities; change requests reviewed against approved scope |

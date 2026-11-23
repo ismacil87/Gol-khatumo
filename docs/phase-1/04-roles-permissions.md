@@ -46,7 +46,7 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
 | Student attendance | `attendance.read`, `attendance.take`, `attendance.edit_locked` |
 | Staff attendance | `staff_attendance.read`, `staff_attendance.record`, `staff_leave.approve` |
 | Exams | `exams.read`, `exams.manage`, `exams.lock`, `exams.publish`, `exams.unlock` |
-| Marks/results | `marks.read`, `marks.enter`, `marks.import`, `results.read`, `rankings.read` |
+| Marks/results | `marks.read`, `marks.enter`, `marks.import`, `results.read`, `rankings.read`, `results.annual_policy.manage` (reserved for the future annual result policy, School Admin only, inactive in v1) |
 | Report cards | `report_cards.generate`, `report_cards.remarks.manage` |
 | Fees | `fees.structures.read`, `fees.structures.manage`, `fees.charges.generate`, `fees.charges.adhoc`, `fees.charges.waive.request`, `fees.charges.waive.approve`, `fees.discounts.manage` |
 | Free students | `billing.status.read`, `billing.status.request`, `billing.status.approve` |

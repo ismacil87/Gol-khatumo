@@ -52,17 +52,17 @@ Gol Khatumo School uses **terms, not semesters**. Each academic year has exactly
 | Sequence | Official label | Role in the year |
 |----------|----------------|------------------|
 | 1 | **Mid Term** | First term of the academic year |
-| 2 | **Final Term** | Second and last term. Its close also completes the academic year (annual results, promotion). |
+| 2 | **Final Term** | Second and last term. Its close completes the academic year (promotion decisions). Its result is independent of Mid Term (GP-2, GP-5). |
 
 ```mermaid
 flowchart LR
   AY["Academic Year<br/>e.g. 2026–2027"] --> MT["Term 1: Mid Term"]
   AY --> FT["Term 2: Final Term"]
-  MT --> MTX["Mid Term exams · marks<br/>Mid Term results & ranking<br/>Mid Term report card"]
-  FT --> FTX["Final Term exams · marks<br/>Final Term results & ranking"]
-  MTX --> ANN["Annual result<br/>(Mid Term + Final Term)<br/>annual ranking · promotion"]
-  FTX --> ANN
-  ANN --> RC["Final Term / annual report card"]
+  MT --> MTX["Mid Term exams · marks<br/>Mid Term result out of 100% · grade · ranking<br/>Mid Term report card"]
+  FT --> FTX["Final Term exams · marks<br/>Final Term result out of 100% · grade · ranking<br/>Final Term report card"]
+  MTX --> SEP["Both term results displayed separately<br/>no combined annual percentage"]
+  FTX --> SEP
+  SEP -.-> FUT["Future option only after formal school approval:<br/>annual result policy (disabled in v1)"]
   MT -.-> FEE1["Termly fees charged for Mid Term"]
   FT -.-> FEE2["Termly fees charged for Final Term"]
 ```
@@ -72,8 +72,28 @@ Rules:
 - **AS-2.** Terms are stored as data per academic year, not hard-coded. Each term has a sequence, label, start date and end date. The structure therefore stays configurable for future academic years: when a new year is created, it copies the previous year's term structure (Mid Term, Final Term) by default, and the School Admin sets the dates.
 - **AS-3.** Terms within a year do not overlap, fall inside the academic year's dates, and are ordered Mid Term → Final Term.
 - **AS-4.** The system never introduces a third term or semesters. Report types, fee periods and screens are built for the two-term structure.
-- **AS-5.** Everything time-based in the year attaches to a term: exams and exam scheduling, termly fee charges, attendance summaries, results and rankings, report cards. Annual figures combine Mid Term and Final Term.
+- **AS-5.** Everything time-based in the year attaches to a term: exams and exam scheduling, termly fee charges, attendance summaries, results and rankings, report cards. Mid Term and Final Term results are calculated **independently** and are never combined in v1 (see §1.7).
 - **AS-6.** "Mid Term" here is the name of the **first term**, not a mid-term exam. To avoid confusion, exam names inside each term are defined separately (see Q-E1), and screens always show the term label next to the exam name, e.g. "Mid Term · Monthly Test 1".
+
+### 1.7 Grading and term results policy (confirmed by the project owner)
+
+| Rule | Policy |
+|------|--------|
+| **GP-1** | The **Mid Term** result is calculated independently, on a 100% scale. |
+| **GP-2** | The **Final Term** result is calculated independently, on a 100% scale. |
+| **GP-3** | Each term has its own examination results and its own final grade. The term result for each subject has a maximum of **100 marks**. The overall term percentage is the student's total term marks ÷ (100 × number of counted subjects) × 100, which is the average of the subject term marks. |
+| **GP-4** | The grading scale is applied to each term separately: a grade per subject and an overall grade for Mid Term, and the same for Final Term. Pass/fail is also per term. |
+| **GP-5** | **No combined annual result in the initial release.** The system does not combine Mid Term and Final Term with any weighting (50/50, 40/60 or any other), and does **not** treat the Final Term result as the annual result. |
+| **GP-6** | Both term results are displayed **separately**: on screens, in rankings, on mark sheets and on report cards. |
+| **GP-7** | Rankings are per exam and per term (Mid Term, Final Term). There is no annual ranking in v1. |
+| **GP-8** | Promotion at year end is decided by the Principal/School Admin with both term results visible side by side. The system does not compute a combined promotion score (criteria in Q-E5). |
+| **GP-9** | How several assessments *within* one term make up that term's 100 marks (e.g. monthly tests plus a term examination) is still to be confirmed (Q-E1, Q-E2). Whatever the composition, each subject's term result is out of 100. |
+
+**Future flexibility (architecture only, not active in v1):** the data model reserves an **annual result policy** per academic year. Its mode is `NONE` (the current policy) and is fixed to `NONE` in v1. A later release may allow an authorised School Admin to configure how Mid Term and Final Term contribute to an annual result, but only:
+- after the school formally approves an annual calculation policy (approval reference, approver and date recorded);
+- for academic years whose results have not yet been published, so it is never retroactive;
+- with an audit-log entry for every change.
+Until then no annual percentage, annual grade or annual rank is calculated, stored or shown.
 
 ---
 
@@ -98,7 +118,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-SCH-04 | Create academic years with start and end dates. Exactly one year per school is *current*. A year can be closed (read-only). | M |
 | FR-SCH-05 | Each academic year contains two terms, **Mid Term** and **Final Term**, with start and end dates, created automatically with the year (AS-1 to AS-3). The School Admin edits dates; the term structure is copied to each new year. | M |
 | FR-SCH-06 | Configure working days, school holidays and closure dates. Attendance is not expected on these days. | S |
-| FR-SCH-07 | Year-end rollover, after Final Term results are published: promote students to the next grade, repeat, graduate or withdraw, with a preview before committing | M |
+| FR-SCH-07 | Year-end rollover, after Final Term results are published: the Principal/School Admin decides, with Mid Term and Final Term results shown separately, to promote students to the next grade, repeat, graduate or withdraw, with a preview before committing | M |
 | FR-SCH-08 | Configure numbering formats for admission numbers, employee numbers and receipt numbers | S |
 
 ### 2.3 Student Management (STU)
@@ -179,11 +199,11 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 ### 2.11 Examination Management (EXM)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-EXM-01 | Configure exam types (e.g. Monthly Test, Term Examination; actual list per Q-E1) and their weighting toward the term result | M |
+| FR-EXM-01 | Configure exam types (e.g. Monthly Test, Term Examination; actual list per Q-E1) and how they make up the term's 100 marks per subject (GP-3, GP-9) | M |
 | FR-EXM-02 | Create an exam inside a specific term (**Mid Term** or **Final Term**), choose the grade levels and subjects, and set maximum marks, pass mark and date per paper. Exam dates must fall within that term's dates. | M |
 | FR-EXM-03 | Exam lifecycle: DRAFT → SCHEDULED → MARKS_ENTRY → LOCKED → PUBLISHED. Marks are only editable during MARKS_ENTRY. Unlocking needs Principal or School Admin permission and a stated reason, and is audit-logged. | M |
 | FR-EXM-04 | Exam timetable / schedule PDF per grade level, per term (Mid Term, Final Term) | S |
-| FR-EXM-05 | Grading scale per school: percentage bands → grade, remark (Somali/English) and optional grade point | M |
+| FR-EXM-05 | Grading scale per school: percentage bands → grade, remark (Somali/English) and optional grade point. Applied separately to the Mid Term result and the Final Term result (GP-4). | M |
 
 ### 2.12 Marks & Results (MRK)
 | ID | Requirement | P |
@@ -191,15 +211,16 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-MRK-01 | Mark entry grid per exam paper and section. Teachers see only their assigned section and subject combinations. | M |
 | FR-MRK-02 | Validation: 0 ≤ mark ≤ maximum mark. Mark a student ABSENT or EXEMPT instead of entering a score. | M |
 | FR-MRK-03 | Autosave drafts. Show entry progress per paper (entered / total). | S |
-| FR-MRK-04 | Compute per-student results: total, percentage, grade, pass/fail per subject and overall | M |
-| FR-MRK-05 | Mid Term result and Final Term result, each computed from that term's weighted exams. The annual result combines the Mid Term and Final Term results. | M (weights in Q-E2) |
+| FR-MRK-04 | Compute per-student results for each term: subject term mark out of 100, overall term percentage, grade, pass/fail per subject and overall (GP-1 to GP-4) | M |
+| FR-MRK-05 | The Mid Term result and the Final Term result are computed **independently**. No combined annual result, weighted or otherwise, is computed in v1 (GP-5). | M |
 | FR-MRK-06 | Import marks from Excel per exam (see §2.26) | M |
-| FR-MRK-07 | Mark sheets / broadsheets per section (students × subjects) to PDF and Excel | M |
+| FR-MRK-07 | Mark sheets / broadsheets per section (students × subjects), one per term, to PDF and Excel | M |
+| FR-MRK-08 | Annual result policy (future): an authorised School Admin configures how Mid Term and Final Term contribute to an annual result, only after formal school approval. In v1 the policy is fixed to `NONE` and this screen is not built (§1.7). | C (future) |
 
 ### 2.13 Student Ranking (RNK)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-RNK-01 | Rank students within a section and within the whole grade level, per exam, for Mid Term, for Final Term and for the year (annual) | M |
+| FR-RNK-01 | Rank students within a section and within the whole grade level, per exam, for Mid Term and for Final Term, each ranked separately. No annual ranking in v1 (GP-7). | M |
 | FR-RNK-02 | **[PROPOSED]** Ranking by percentage across subjects that count toward ranking. Ties share a rank using standard competition ranking (1, 2, 2, 4). Students with missing (not ABSENT) marks are excluded until complete. See Q-E3. | M |
 | FR-RNK-03 | Top-N lists per grade level and per subject | S |
 | FR-RNK-04 | Rankings are snapshotted when an exam is published so later edits cannot silently change published ranks | M |
@@ -207,8 +228,8 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 ### 2.14 Report Cards (RPC)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-RPC-01 | Generate report cards per student, section or grade level as PDF. Two report card types: **Mid Term report card** (Mid Term results) and **Final Term report card** (Final Term results, plus the Mid Term column and the annual result, rank and promotion decision) **[PROPOSED]** (Q-E6) | M |
-| FR-RPC-02 | Contents: school header and logo, student details, subject marks per exam, totals, percentage, grade, rank, term attendance summary, class teacher and principal remarks, signatures, school stamp, date | M |
+| FR-RPC-01 | Generate report cards per student, section or grade level as PDF. Two report card types: **Mid Term report card** (Mid Term results) and **Final Term report card** (Final Term results, grade and rank, with the Mid Term results shown alongside in a separate column for reference). **No combined or annual percentage, grade or rank** appears on either card (GP-5, GP-6). Layout per Q-E6. | M |
+| FR-RPC-02 | Contents: school header and logo, student details, term label, subject marks per exam, subject term mark out of 100, term total, term percentage, term grade, term rank, term attendance summary, class teacher and principal remarks, signatures, school stamp, date | M |
 | FR-RPC-03 | Report card language: Somali, English or bilingual | M |
 | FR-RPC-04 | Class teacher and principal remarks entered per student, with optional preset comments | S |
 | FR-RPC-05 | Only PUBLISHED results can appear on an official report card | M |

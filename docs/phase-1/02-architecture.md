@@ -314,7 +314,7 @@ Report request → permission check → data query (tenant-scoped, read-only)
 - **Official documents:** receipts and report cards can embed a verification code and QR (FR-PDF-07, could-have).
 
 ### 8.3 Standard PDF catalogue (v1)
-Receipt · Student fee statement · Outstanding balances by class · Class financial summary · Free student register · Daily cash report · Income/expense report · Mid Term report card · Final Term report card (with annual result) · Mark sheet / broadsheet (per term) · Ranking list (Mid Term / Final Term / annual) · Section roster · Attendance register (monthly) and term attendance summary · Staff attendance report · Timetable (section/teacher) · Exam schedule (per term) · Library overdue list · Inventory stock report · Transport route roster · Student profile.
+Receipt · Student fee statement · Outstanding balances by class · Class financial summary · Free student register · Daily cash report · Income/expense report · Mid Term report card · Final Term report card (Mid Term and Final Term shown separately, no combined result) · Mark sheet / broadsheet (per term) · Ranking list (Mid Term / Final Term) · Section roster · Attendance register (monthly) and term attendance summary · Staff attendance report · Timetable (section/teacher) · Exam schedule (per term) · Library overdue list · Inventory stock report · Transport route roster · Student profile.
 
 ## 9. Localization (Somali / English)
 

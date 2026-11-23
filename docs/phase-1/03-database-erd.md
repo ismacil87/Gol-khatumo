@@ -234,7 +234,7 @@ flowchart TB
   T2 --> C2["FEE_CHARGE period_key 2026-27:FINAL_TERM"]
   T1 --> R1["RESULT_SNAPSHOT scope TERM (Mid Term)"]
   T2 --> R2["RESULT_SNAPSHOT scope TERM (Final Term)"]
-  R1 & R2 --> RY["RESULT_SNAPSHOT scope YEAR (annual)"]
+  R1 & R2 -.-> RY["ANNUAL_RESULT_POLICY mode NONE<br/>no annual snapshot in v1 (reserved)"]
   T1 --> RM1["REPORT_CARD_REMARK (Mid Term)"]
   T2 --> RM2["REPORT_CARD_REMARK (Final Term)"]
 ```
@@ -244,7 +244,7 @@ Constraints and rules:
 - Term dates must fall inside the academic year and must not overlap (service validation plus tests). Sequence 1 = Mid Term, sequence 2 = Final Term.
 - **Initial configuration (seed / school onboarding):** every academic year created for Gol Khatumo School gets exactly two terms, `MID_TERM` ("Mid Term") and `FINAL_TERM` ("Final Term", `is_final = true`). A school setting `term_template` holds this two-term template, and new years copy it. Terms are data, not hard-coded, so the structure stays configurable for future years, but the service only allows terms defined in the school's template. No third term and no semesters are created.
 - A term is the parent of: exams (`exam.term_id`), termly fee charges (`fee_charge.term_id`, `period_key`), term result snapshots and report card remarks. Attendance records are linked to a term by date range; the term attendance summary is calculated from attendance dates within the term.
-- Closing the **Final Term** (when its results are published) enables annual results and year-end rollover.
+- Mid Term and Final Term results are independent, each out of 100% (Requirements §1.7). Closing the **Final Term** (when its results are published) enables year-end rollover. It does **not** produce an annual result.
 
 ## 5. People: students, guardians, staff, enrolment
 
@@ -454,13 +454,14 @@ erDiagram
   ENROLLMENT ||--o{ RESULT_SNAPSHOT : "for"
   ENROLLMENT ||--o{ REPORT_CARD_REMARK : "remarks"
   TERM ||--o{ RESULT_SNAPSHOT : "term results"
+  ACADEMIC_YEAR ||--o| ANNUAL_RESULT_POLICY : "reserved, mode NONE in v1"
   TERM ||--o{ REPORT_CARD_REMARK : "per term"
 
   EXAM_TYPE {
     string id PK
     string name_so
     string name_en
-    decimal default_weight "% toward its term result (Mid Term or Final Term)"
+    decimal default_weight "share of the term 100 marks (within one term only)"
   }
   EXAM {
     string id PK
@@ -511,21 +512,30 @@ erDiagram
   }
   RESULT_SNAPSHOT {
     string id PK
-    string scope "EXAM|TERM|YEAR"
+    string scope "EXAM|TERM (YEAR reserved, not used in v1)"
     string exam_id FK "set when scope = EXAM"
-    string term_id FK "Mid Term or Final Term; set when scope = EXAM or TERM"
-    string academic_year_id FK "set when scope = YEAR"
+    string term_id FK "Mid Term or Final Term"
     string enrollment_id FK
     decimal total_score
     decimal total_max
-    decimal percentage
-    string grade
+    decimal percentage "0-100, term result"
+    string grade "term grade"
     int rank_in_section
     int rank_in_grade
     int section_size
     boolean passed
-    json subject_breakdown
+    json subject_breakdown "per subject: term mark out of 100, grade, pass"
     datetime computed_at
+  }
+  ANNUAL_RESULT_POLICY {
+    string id PK
+    string academic_year_id FK
+    string mode "NONE (v1, fixed) | WEIGHTED (future)"
+    decimal mid_term_weight "null in v1"
+    decimal final_term_weight "null in v1"
+    string approval_reference "formal school approval"
+    string approved_by_id FK
+    datetime approved_at
   }
   REPORT_CARD_REMARK {
     string id PK
@@ -539,8 +549,9 @@ erDiagram
 Rules:
 - `UNIQUE (school_id, exam_paper_id, enrollment_id)` on marks.
 - Every exam belongs to exactly one term (Mid Term or Final Term), and its paper dates must fall inside that term.
-- Result levels: **EXAM** → **TERM** (Mid Term result, Final Term result; weighted exams of that term) → **YEAR** (annual result combining Mid Term and Final Term; weights per Q-E2). Ranks are computed at each level.
-- The annual (YEAR) snapshot is produced when the Final Term exams are published, and needs the Mid Term results to be published already.
+- Result levels in v1: **EXAM** → **TERM**. The Mid Term result and the Final Term result are each calculated independently on a 100% scale: every subject's term mark is out of 100 (`total_max` = 100 × counted subjects), and the grading scale is applied per term. Ranks are computed per exam and per term.
+- **No YEAR (annual) snapshot is produced in v1.** The `YEAR` scope value and `annual_result_policy` are reserved for a possible future, formally approved annual calculation. In v1 the service rejects any policy mode other than `NONE`, and no code path combines Mid Term and Final Term or uses the Final Term result as an annual result.
+- If an annual policy is approved in future, it applies only to academic years whose Final Term results are not yet published, and every change is audit-logged.
 - Marks can be written only while `exam.status = MARKS_ENTRY`. The service checks this inside the transaction, together with the exam `version`.
 - On publish, results and ranks are computed and written to `result_snapshot`. Report cards and rankings read **only** snapshots, so published results cannot drift. Unlocking a published exam invalidates its snapshots, and re-publishing recomputes them (audited).
 

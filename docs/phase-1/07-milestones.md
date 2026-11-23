@@ -74,16 +74,18 @@ A phase is complete only when **all** of the following hold:
 - Rollover is available only after Final Term results are published (stubbed until Phase 6). The preview lists promote/repeat/graduate per student. Commit creates next-year enrolments correctly. Re-running the commit does nothing.
 
 ### Phase 6 — Examinations & results
-**Deliverables:** exam types and weights, grading scales, exams and papers, lifecycle (draft → publish, unlock), mark entry grid (autosave, progress), marks computation, Mid Term and Final Term results and the annual result, rankings with tie rules, result snapshots, report card remarks, Mid Term and Final Term report card PDFs (first version), exam schedule per term, mark sheet/broadsheet.
+**Deliverables:** exam types and weights, grading scales, exams and papers, lifecycle (draft → publish, unlock), mark entry grid (autosave, progress), marks computation, independent Mid Term and Final Term results (each out of 100%), rankings with tie rules, result snapshots, report card remarks, Mid Term and Final Term report card PDFs (first version), exam schedule per term, mark sheet/broadsheet.
 
 **Acceptance criteria**
 - Every exam belongs to Mid Term or Final Term, and paper dates outside that term are rejected.
-- Publishing Mid Term produces Mid Term results and ranks. Publishing Final Term produces Final Term results plus annual results and ranks combining both terms, matching hand-calculated fixtures using the weights agreed in Q-E2.
+- Publishing Mid Term produces Mid Term results, grades and ranks. Publishing Final Term produces Final Term results, grades and ranks. Each is calculated independently on a 100% scale and matches hand-calculated fixtures.
+- No subject term mark can exceed 100, and the overall term percentage is between 0 and 100.
+- **No annual result is produced:** tests assert that no combined or weighted annual percentage, grade or rank is calculated, stored, returned by the API or printed, and that the Final Term result is never labelled as an annual result. The annual result policy is fixed to `NONE`, and attempts to set another mode are rejected.
 - Marks outside 0..max are rejected. ABSENT/EXEMPT are handled per agreed rules.
 - Teachers can enter marks only for assigned subject × section, and only during MARKS_ENTRY.
 - Publishing produces snapshots. Editing marks afterwards requires unlock (audited) and re-publish. Published ranks never change silently.
 - Ranking tests cover ties (1, 2, 2, 4), missing marks and exempt subjects, using fixtures with hand-calculated expected results.
-- Mid Term and Final Term report card PDFs for a class render in Somali and in English with the correct term label, totals, grades, ranks and term attendance. The Final Term report card also shows the Mid Term column and the annual result.
+- Mid Term and Final Term report card PDFs for a class render in Somali and in English with the correct term label, totals, grades, ranks and term attendance. The Final Term report card shows the Mid Term results in a separate column, with no combined or annual figure.
 
 ### Phase 7 — Finance & fee management
 **Deliverables:** fee categories and structures, charge generation (preview, idempotent), ad-hoc charges, discounts, waivers with approval, billing profiles (FREE / FEE_PAYING) with approval and history, payments with allocation and credit, receipt numbering and **receipt PDF**, payment void/refund (maker-checker), outstanding balances and aging, class financial report, free student register, finance accounts, income/expenses with approval, daily cash report, fee statement PDF.
