@@ -103,7 +103,7 @@ stateDiagram-v2
     FT_Pub: Final Term results & ranking · automatic PASS/FAIL & outcome (promoted / repeat grade) · Final Term report cards
   }
   FinalTerm --> Rollover: Final Term closed
-  Rollover --> Closed: Place students by automatic outcome (PASS → next grade, FAIL → same grade) · year read-only
+  Rollover --> Closed: Automatic outcomes (PASS → next grade or GRADUATED in final grade · FAIL → same grade) · School Admin places PENDING PLACEMENT late joiners · year read-only
   Closed --> [*]
 ```
 

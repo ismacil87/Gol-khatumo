@@ -32,9 +32,10 @@
 | Grading | Mid Term and Final Term each calculated independently out of 100%, shown separately; no combined annual result (confirmed, C-02) |
 | Grading scale | 91–100 A+, 85–90 A-, 80–84 B+, 75–79 B, 70–74 C+, 65–69 C, 60–64 D+, 50–59 D, 0–49 F. One exam per subject per term out of 100. Final Term ≥ 50 = PASS (confirmed, C-03) |
 | PASS/FAIL | Overall Final Term percentage across all subjects (total obtained ÷ total possible × 100), exact, no rounding: ≥ 50% PASS, < 50% FAIL. One failed subject does not fail the student (confirmed, C-05) |
-| Promotion | Automatic: PASS → next grade, FAIL → repeat the same grade; no approval; outcome recorded and displayed. Mid Term does not decide promotion (confirmed, C-06) |
+| Promotion | Automatic: PASS → next grade (GRADUATED in the highest grade, C-09), FAIL → repeat the same grade; no approval; outcome recorded and displayed. Mid Term does not decide promotion (C-06). Late joiners → PENDING PLACEMENT, placed by the School Admin with an audited reason (C-10) |
 | Exam absence | ABSENT = automatic 0/100, included in the overall percentage; grades and PASS/FAIL calculated normally; no option to choose another policy (confirmed, C-07 revised) |
-| Marks | Decimals allowed, e.g. 67.5, 78.5, 90.5 (confirmed, C-08) |
+| Marks | 0.00–100.00 with up to two decimal places, e.g. 67.25, 78.50, 90.25; more decimals rejected; no rounding (confirmed, C-08) |
+| Ranking | Exact overall term percentage; ties share a rank with competition ranking 1, 2, 2, 4 (confirmed, C-11) |
 | Users (v1) | Staff only. Parents and students have no login. |
 | Roles | Platform Super Admin, School Admin, Principal, Accountant, Teacher |
 | Backend | Node.js + Express.js + TypeScript |

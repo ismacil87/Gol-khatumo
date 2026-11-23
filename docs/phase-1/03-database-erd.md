@@ -11,7 +11,7 @@
 | Timestamps | `created_at`, `updated_at` as `DATETIME(3)` in UTC. `created_by_id` / `updated_by_id` on business records. |
 | Soft delete | Master data (students, staff, books, items…) uses a `status` and/or `archived_at`. **Financial and audit records are never deleted**: they are voided with a reason. |
 | Money | `DECIMAL(12,2)`. Never FLOAT. Currency is stored on `schools`. |
-| Marks | `DECIMAL(5,2)`: 0.00–100.00, decimals allowed (e.g. 67.50) (C-08) |
+| Marks | `DECIMAL(5,2)`: 0.00–100.00, up to two decimal places (e.g. 67.25) (C-08). The API rejects more than two decimal places, because MySQL would otherwise round them silently. |
 | Enums | Prisma enums (MySQL `ENUM`) for stable sets. Lookup tables for school-configurable sets (fee categories, expense categories). |
 | Bilingual reference data | `name_so`, `name_en` columns |
 | Optimistic locking | `version INT` on aggregates edited by several users (exams, fee structures, timetables) |
@@ -177,7 +177,7 @@ erDiagram
     string name_en
     int display_order
     string level_group "PRIMARY|INTERMEDIATE|SECONDARY"
-    string next_grade_level_id FK "promotion target; null = final grade"
+    string next_grade_level_id FK "promotion target; null = final grade, PASS graduates"
   }
   SECTION {
     string id PK
@@ -194,7 +194,6 @@ erDiagram
     string name_so
     string name_en
     string type "CORE|ELECTIVE"
-    boolean counts_for_ranking
   }
   CURRICULUM_SUBJECT {
     string id PK
@@ -288,7 +287,12 @@ erDiagram
     date enrolled_on
     date left_on
     string status "ACTIVE|TRANSFERRED_OUT|COMPLETED|WITHDRAWN"
-    string outcome "PROMOTED|REPEAT_GRADE|GRADUATED|null (automatic)"
+    string outcome "PROMOTED|REPEAT_GRADE|GRADUATED|PENDING_PLACEMENT|null"
+    string outcome_source "AUTOMATIC|ADMIN_PLACEMENT"
+    string placement_grade_level_id FK "School Admin decision for PENDING_PLACEMENT"
+    string placement_reason
+    string placement_decided_by_id FK
+    datetime placement_decided_at
     string outcome_snapshot_id FK "Final Term result it came from"
     datetime outcome_determined_at
   }
@@ -517,8 +521,8 @@ erDiagram
     decimal total_max "total possible marks, all subjects taken"
     decimal percentage "exact, for display only (truncated 2 dp)"
     string grade "overall term letter grade"
-    int rank_in_section
-    int rank_in_grade
+    int rank_in_section "competition ranking 1,2,2,4"
+    int rank_in_grade "competition ranking 1,2,2,4"
     int section_size
     string result_status "PASS|FAIL (Final Term) or NOT_APPLICABLE (Mid Term)"
     string end_of_year_outcome "PROMOTED|REPEAT_GRADE|GRADUATED (Final Term only)"
@@ -555,10 +559,12 @@ Rules:
 - **Overall percentage (C-05):** `total_score` = sum of marks obtained across all subjects examined in the term (decimals kept exactly); `total_max` = sum of possible marks across those subjects (100 each). **ABSENT counts as 0 out of 100 and is included in both totals** (C-07). Only EXEMPT subjects are excluded.
 - **Result status (C-05):** Final Term `result_status = PASS` when `total_score × 100 ≥ pass_threshold × total_max`, else `FAIL`. This compares the exact totals, so there is no rounding. Individual subject grades never decide PASS/FAIL. For the Mid Term snapshot, `result_status = NOT_APPLICABLE`. Mid Term never affects the Final Term status or the outcome.
 - **Grade from exact percentage:** the overall grade uses the same exact comparison against each band's `min_percent` (`total_score × 100 ≥ min_percent × total_max`). `percentage` is stored for display and reporting only and is never used for decisions.
-- **End-of-year outcome (C-06), automatic:** when the Final Term exam is published, `end_of_year_outcome` is set on each Final Term snapshot: PASS → `PROMOTED` (or `GRADUATED` when the grade level has no `next_grade_level_id`, **[PROPOSED]** Q-E10); FAIL → `REPEAT_GRADE`. It is copied to `enrollment.outcome` with `outcome_snapshot_id`, by the system actor, with an audit entry. No approval step exists, and no API lets a user set or override `outcome`.
+- **End-of-year outcome (C-06), automatic:** when the Final Term exam is published, `end_of_year_outcome` is set on each Final Term snapshot: PASS → `PROMOTED`, or `GRADUATED` when the student's grade level has no `next_grade_level_id` (C-09); FAIL → `REPEAT_GRADE`. It is copied to `enrollment.outcome` (`outcome_source = AUTOMATIC`, `outcome_snapshot_id`) by the system actor, with an audit entry. No approval step exists, and no API lets a user set or override an automatic outcome. A GRADUATED student gets no next-year enrolment, and their `student.status` becomes `GRADUATED` at rollover.
+- **Late joiners (C-10):** at Final Term publication, every enrolment of the year whose student had **no active enrolment in the school on the first Final Term paper date** receives `outcome = PENDING_PLACEMENT` and has no Final Term snapshot. Such students are excluded from the Final Term mark-entry grid, so they are never auto-marked ABSENT. Section transfers do not count as late joining. Only the School Admin (`academic.placement.decide`) resolves it: `placement_grade_level_id`, `placement_reason` (mandatory), `placement_decided_by_id` and `placement_decided_at` are written with `outcome_source = ADMIN_PLACEMENT`, together with an audit entry recording the decision, reason, user and date. Rollover creates their next-year enrolment from that decision (or graduates them, if the decision is to graduate from a final grade).
+- **Ranking (C-11):** `rank_in_section` and `rank_in_grade` use standard competition ranking over the exact overall percentage. Two students tie only if `total_score_A × total_max_B = total_score_B × total_max_A`; otherwise the higher exact value ranks first. The rank is 1 + the number of students with a strictly higher value, which gives 1, 2, 2, 4. The same function is used for Mid Term and Final Term and by every ranking report.
 - **Corrections:** an outcome changes only if Final Term marks are corrected through the audited unlock → re-publish flow before rollover commits. After rollover, a correction also moves the next-year enrolment (same grade level ↔ next grade level), audit-logged.
 - **Absence rule (C-07, fixed):** check constraints on `mark`: `entry_status = 'ABSENT'` ⇒ `score = 0`; `entry_status = 'EXEMPT'` ⇒ `score IS NULL`; `entry_status = 'SCORED'` ⇒ `0 ≤ score ≤ 100`. The service sets `score = 0` automatically when ABSENT is recorded. There is no absence-policy table, setting or permission.
-- **Decimal marks (C-08):** `score DECIMAL(5,2)` accepts values such as 67.50, 78.50 and 90.50. Totals are summed exactly, and grades and PASS/FAIL use the exact comparisons above, so a subject mark of 90.50 is A- (below the A+ lower bound of 91).
+- **Decimal marks (C-08):** `score DECIMAL(5,2)` holds 0.00–100.00 with up to two decimal places (67.25, 78.50, 90.25). Input with more decimal places is rejected by validation before it reaches the database. Totals are summed exactly, and grades and PASS/FAIL use the exact comparisons above with no rounding: a subject mark of 90.25 or 90.50 is A-, because the A+ lower bound is 91.
 - **Re-publication:** changing a mark or an ABSENT status on a published exam goes only through the audited unlock → re-publish flow. Republishing writes new snapshots with `result_version + 1` and marks the previous ones `is_current = false`; they are never deleted. No other code path writes snapshots of a published exam.
 - Snapshots store `grading_scale_id` and `grading_scale_version`, so a future scale change never alters published grades.
 - Every exam belongs to exactly one term (Mid Term or Final Term), and its paper dates must fall inside that term.

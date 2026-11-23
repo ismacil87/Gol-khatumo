@@ -71,7 +71,7 @@ A phase is complete only when **all** of the following hold:
 - Timetable rejects a teacher double-booking and a section slot clash with clear localized messages.
 - A teacher can take attendance only for assigned sections, on working days, within the edit window. The Principal can edit later, with a reason (audited).
 - Monthly attendance register for a section matches the raw records. Holidays are excluded.
-- Rollover is available only after Final Term results are published (stubbed until Phase 6). The preview shows each student's automatic outcome (PROMOTED → next grade level, REPEAT GRADE → same grade level, GRADUATED). The outcomes cannot be edited in the preview or through the API. Commit creates next-year enrolments accordingly, and re-running the commit does nothing.
+- Rollover is available only after Final Term results are published (stubbed until Phase 6). The preview shows each student's automatic outcome (PROMOTED → next grade level, REPEAT GRADE → same grade level, GRADUATED → no next-year enrolment), plus a separate list of PENDING PLACEMENT late joiners. Automatic outcomes cannot be edited in the preview or through the API. Late joiners are placed only by the School Admin, with a reason. Commit creates next-year enrolments accordingly; re-running it does nothing.
 
 ### Phase 6 — Examinations & results
 **Deliverables:** official grading scale (seeded, read-only), fixed absence rule (ABSENT = 0/100), decimal marks, one examination per term with one paper per subject out of 100, lifecycle (draft → publish, unlock), mark entry grid (autosave, progress), marks computation, independent Mid Term and Final Term results (each out of 100%), rankings with tie rules, result snapshots, report card remarks, Mid Term and Final Term report card PDFs (first version), exam schedule per term, mark sheet/broadsheet.
@@ -85,12 +85,18 @@ A phase is complete only when **all** of the following hold:
   - 7 subjects, 350/700 = 50.00% → **PASS**; 349/700 = 49.857…% → **FAIL**, displayed as 49.85% (truncated), never as 50%.
   - EXEMPT subjects are excluded from both totals. ABSENT counts as 0/100 and is included: marks 67.5, 55 and one ABSENT give 122.5/300 = 40.83% → FAIL.
   - Mid Term shows "no PASS/FAIL decision". A student below 50% overall in Mid Term but ≥ 50% overall in Final Term is PASS, and the reverse is FAIL.
-- **Automatic outcome (C-06):** publishing Final Term sets PROMOTED for every PASS and REPEAT GRADE for every FAIL (GRADUATED in the highest grade, per Q-E10), with no approval step. Outcomes appear on the student profile, the rollover preview and the Final Term report card. No role can override them: tests assert that the API has no endpoint for it and that attempts are rejected. Correcting Final Term marks through unlock → re-publish recalculates the outcome, audit-logged.
+- **Automatic outcome (C-06):** publishing Final Term sets PROMOTED for every PASS and REPEAT GRADE for every FAIL, with no approval step. Outcomes appear on the student profile, the rollover preview and the Final Term report card. No role can override them: tests assert that the API has no endpoint for it and that attempts are rejected. Correcting Final Term marks through unlock → re-publish recalculates the outcome, audit-logged.
+- **Graduation (C-09):** in the highest grade (no next grade level), PASS → GRADUATED, with no next-year enrolment and student status GRADUATED after rollover; no attempt is made to promote to a non-existent grade. FAIL in the highest grade → REPEAT GRADE.
+- **Late joiners (C-10):**
+  - A student first enrolled after the first Final Term paper date is absent from the mark-entry grid and gets no ABSENT and no result. They receive PENDING PLACEMENT.
+  - Only the School Admin can resolve it (Principal, Accountant and Teacher get 403). The reason is mandatory, and the audit log records decision, reason, user and date.
+  - Control case: a student enrolled before the Final Term but absent from every paper gets ABSENT = 0/100 → 0% → FAIL → REPEAT GRADE, never PENDING PLACEMENT.
+  - A section transfer during the year is not treated as late joining.
 - The grading scale is read-only in v1. Any attempt to edit it is rejected, and published snapshots record the scale version.
 - Publishing Mid Term produces Mid Term results, grades and ranks. Publishing Final Term produces Final Term results, grades and ranks. Each is calculated independently on a 100% scale and matches hand-calculated fixtures.
 - No subject term mark can exceed 100, and the overall term percentage is between 0 and 100.
 - **No annual result is produced:** tests assert that no combined or weighted annual percentage, grade or rank is calculated, stored, returned by the API or printed, and that the Final Term result is never labelled as an annual result. The annual result policy is fixed to `NONE`, and attempts to set another mode are rejected.
-- **Decimal marks (C-08):** 67.5, 78.5 and 90.5 are accepted and stored exactly. -0.5, 100.5 and 67.555 (three decimal places) are rejected. Subject grades with decimals: 90.5 → A-, 84.5 → B+, 64.5 → D+, 49.5 → F. Overall: 67.5 + 78.5 + 90.5 = 236.5/300 = 78.83% → B, PASS.
+- **Decimal marks (C-08):** 0.00, 67.25, 78.50, 90.25 and 100.00 are accepted and stored exactly. -0.01, 100.01, 67.255 and 90.125 (more than two decimal places) are rejected with a validation error and are never rounded. Subject grades: 90.25 → A-, 90.5 → A-, 84.5 → B+, 64.5 → D+, 49.5 → F. Overall: 67.25 + 78.50 + 90.25 = 236.00/300 = 78.666…% (shown 78.66%) → B, PASS.
 - **Absence rule (C-07):**
   - Recording ABSENT stores score 0 automatically. Sending a non-zero score with ABSENT is rejected.
   - ABSENT is included in both totals (0 obtained, 100 possible). The subject grade is F, and the overall grade, ranking, Final Term PASS/FAIL and outcome are calculated normally.
@@ -101,7 +107,7 @@ A phase is complete only when **all** of the following hold:
   - Changing an ABSENT status on a published exam requires unlock → re-publish. The previous result version stays readable, and tests assert that no other write path changes published snapshots.
 - Teachers can enter marks only for assigned subject × section, and only during MARKS_ENTRY.
 - Publishing produces snapshots. Editing marks afterwards requires unlock (audited) and re-publish. Published ranks never change silently.
-- Ranking tests cover ties (1, 2, 2, 4), missing marks and exempt subjects, using fixtures with hand-calculated expected results.
+- **Ranking ties (C-11):** with exact overall percentages 91.50, 88.00, 88.00 and 80.25, the ranks are **1, 2, 2, 4**. Two students who both display 78.83% (78.833…% and 78.834%) are **not** tied; the higher exact value ranks first. The same results appear in section and grade-level ranks, Mid Term and Final Term, and every term ranking report. Students with incomplete marks or PENDING PLACEMENT are not ranked. All fixtures are hand-calculated.
 - Mid Term and Final Term report card PDFs for a class render in Somali and in English with the correct term label; for each subject the mark, percentage and letter grade; term total, percentage, overall grade, rank, result status (Final Term PASS/FAIL; Mid Term "no PASS/FAIL decision"), grading scale legend and term attendance. The Final Term report card shows the Mid Term results in a separate column, with no combined or annual figure.
 
 ### Phase 7 — Finance & fee management
