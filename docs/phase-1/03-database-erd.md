@@ -457,6 +457,9 @@ erDiagram
   TERM ||--o{ RESULT_SNAPSHOT : "term results"
   GRADING_SCALE ||--o{ RESULT_SNAPSHOT : "graded with (version kept)"
   ACADEMIC_YEAR ||--o| ANNUAL_RESULT_POLICY : "reserved, mode NONE in v1"
+  ACADEMIC_YEAR ||--|| EXAM_ABSENCE_POLICY : "absence handling (C-07)"
+  EXAM_ABSENCE_POLICY ||--o{ EXAM_ABSENCE_POLICY_CHANGE : "history"
+  EXAM_ABSENCE_POLICY ||--o{ RESULT_SNAPSHOT : "applied in"
   TERM ||--o{ REPORT_CARD_REMARK : "per term"
 
   EXAM {
@@ -524,8 +527,34 @@ erDiagram
     string end_of_year_outcome "PROMOTED|REPEAT_GRADE|GRADUATED (Final Term only)"
     string grading_scale_id FK
     int grading_scale_version
+    string absence_policy_option "ZERO|EXCLUDE applied"
+    int absence_policy_version
+    int result_version "1, then +1 per correction republication"
+    boolean is_current "false for superseded versions"
     json subject_breakdown "per subject: mark out of 100, percentage, letter grade"
     datetime computed_at
+  }
+  EXAM_ABSENCE_POLICY {
+    string id PK
+    string academic_year_id FK "unique"
+    string option "ZERO|EXCLUDE (no default)"
+    string lock_state "OPEN|LOCKED_EXAMS_STARTED"
+    int version
+    string selected_by_id FK
+    datetime selected_at
+    datetime locked_at
+  }
+  EXAM_ABSENCE_POLICY_CHANGE {
+    string id PK
+    string exam_absence_policy_id FK
+    string previous_option "null on first selection"
+    string new_option
+    string change_type "SELECTION|ORDINARY_CHANGE|CORRECTION"
+    string reason "mandatory for CORRECTION"
+    string authorized_by_id FK
+    datetime changed_at
+    json affected_terms "periods republished"
+    string audit_log_id FK
   }
   ANNUAL_RESULT_POLICY {
     string id PK
@@ -550,11 +579,13 @@ Rules:
 - `UNIQUE (school_id, exam_paper_id, enrollment_id)` on marks.
 - **One examination per term (v1):** `UNIQUE (school_id, term_id)` on `exam`; `UNIQUE (school_id, exam_id, grade_level_id, subject_id)` on `exam_paper`; `max_marks = 100` (check constraint); `0 ≤ score ≤ 100` (check constraint).
 - **Official grading scale (seeded, C-03):** `grading_scale` "GKS Official Grading Scale" v1, `pass_threshold = 50`, `is_editable = false`, with `grade_band` rows (min → grade): 91 A+, 85 A-, 80 B+, 75 B, 70 C+, 65 C, 60 D+, 50 D, 0 F. The grade is the band with the highest `min_percent` ≤ the percentage (see Requirements §1.8 GS-3 and Q-E8 for non-whole percentages).
-- **Overall percentage (C-05):** `total_score` = sum of marks obtained across all subjects taken in the term; `total_max` = sum of possible marks across those subjects (100 each). EXEMPT subjects are excluded from both; ABSENT counts as 0 out of 100 **[PROPOSED]** (Q-E3).
+- **Overall percentage (C-05):** `total_score` = sum of marks obtained across all subjects taken in the term; `total_max` = sum of possible marks across those subjects (100 each). EXEMPT subjects are excluded from both. ABSENT is handled by the academic year's `exam_absence_policy` (C-07): **ZERO** → 0 out of 100, included in both totals; **EXCLUDE** → left out of both totals.
 - **Result status (C-05):** Final Term `result_status = PASS` when `total_score × 100 ≥ pass_threshold × total_max`, else `FAIL`. This compares the exact totals, so there is no rounding. Individual subject grades never decide PASS/FAIL. For the Mid Term snapshot, `result_status = NOT_APPLICABLE`. Mid Term never affects the Final Term status or the outcome.
 - **Grade from exact percentage:** the overall grade uses the same exact comparison against each band's `min_percent` (`total_score × 100 ≥ min_percent × total_max`). `percentage` is stored for display and reporting only and is never used for decisions.
 - **End-of-year outcome (C-06), automatic:** when the Final Term exam is published, `end_of_year_outcome` is set on each Final Term snapshot: PASS → `PROMOTED` (or `GRADUATED` when the grade level has no `next_grade_level_id`, **[PROPOSED]** Q-E10); FAIL → `REPEAT_GRADE`. It is copied to `enrollment.outcome` with `outcome_snapshot_id`, by the system actor, with an audit entry. No approval step exists, and no API lets a user set or override `outcome`.
 - **Corrections:** an outcome changes only if Final Term marks are corrected through the audited unlock → re-publish flow before rollover commits. After rollover, a correction also moves the next-year enrolment (same grade level ↔ next grade level), audit-logged.
+- **Absence policy lock (C-07):** one `exam_absence_policy` row per academic year, with no default value. An exam cannot move to `MARKS_ENTRY` while the year's policy has no `option`. `lock_state` becomes `LOCKED_EXAMS_STARTED` when the first exam of the year enters `MARKS_ENTRY` or its first paper date arrives, whichever is earlier. After that, the ordinary settings endpoint rejects changes (`409 ABSENCE_POLICY_LOCKED`). A term whose exam is `PUBLISHED` is fully locked: its snapshots keep `absence_policy_option` and `absence_policy_version`.
+- **Correction and republication:** the only path after the lock is the correction service (permission `exams.absence_policy.correct`). In one transaction it writes an `exam_absence_policy_change` (previous, new, reason, authorised user, date) and an audit entry, increments `version`, and moves the affected exams back to `LOCKED`. Republishing then writes new snapshots with `result_version + 1` and marks the previous ones `is_current = false`; they are never deleted. Outcomes are recalculated as described under Corrections above. No other code path writes snapshots of a published exam.
 - Snapshots store `grading_scale_id` and `grading_scale_version`, so a future scale change never alters published grades.
 - Every exam belongs to exactly one term (Mid Term or Final Term), and its paper dates must fall inside that term.
 - Result levels in v1: **EXAM** → **TERM**. The Mid Term result and the Final Term result are each calculated independently on a 100% scale: every subject's term mark is out of 100 (`total_max` = 100 × counted subjects), and the grading scale is applied per term. Ranks are computed per exam and per term.

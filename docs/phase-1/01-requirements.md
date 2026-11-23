@@ -91,7 +91,7 @@ Rules:
 | **GP-10** | **PASS/FAIL uses overall marks across all subjects, not individual subjects (C-05):** overall Final Term percentage **≥ 50 → PASS**, **< 50 → FAIL**. A student is **not** failed for scoring below 50 in one or more individual subjects if the overall term percentage is at least 50. Subject grades (including F) are still calculated and shown separately. |
 | **GP-11** | The **Mid Term** result is independent: its overall percentage and grades are calculated the same way, but it has **no PASS/FAIL decision**, is never combined with Final Term, and does not determine promotion or repetition. Its result status is shown as "Mid Term – no PASS/FAIL decision". |
 | **GP-12** | **Exact percentages, no rounding (C-05):** grades and PASS/FAIL are determined from the exact percentage. Internally the comparison uses the exact totals (e.g. PASS when total obtained × 100 ≥ 50 × total possible), so no rounding can change a decision. Displayed percentages are shown to 2 decimals and **truncated, never rounded up**: 349 ÷ 700 = 49.857…% displays as 49.85% and is FAIL; it is never shown as 50%. |
-| **GP-13** | **Subjects taken:** every subject the student sat in that term counts toward both totals. EXEMPT subjects are excluded from both totals. **[PROPOSED]** A subject marked ABSENT counts as 0 out of 100 (Q-E3). A student's term result is calculated only when all of their marks are entered. |
+| **GP-13** | **Subjects taken:** every subject the student sat in that term counts toward both totals. EXEMPT subjects are excluded from both totals. A subject marked ABSENT is handled by the academic year's **examination absence policy** (§1.9, C-07). A student's term result is calculated only when all of their marks are entered. |
 
 **Future flexibility (architecture only, not active in v1):** the data model reserves an **annual result policy** per academic year. Its mode is `NONE` (the current policy) and is fixed to `NONE` in v1. A later release may allow an authorised School Admin to configure how Mid Term and Final Term contribute to an annual result, but only:
 - after the school formally approves an annual calculation policy (approval reference, approver and date recorded);
@@ -120,6 +120,30 @@ Rules:
 - **GS-4.** The PASS threshold (50) equals the D/F boundary. PASS/FAIL applies only to the **overall** Final Term percentage (GP-10). A subject grade of F does not by itself cause FAIL.
 - **GS-5.** The school did not provide grade remarks or grade points. Those optional fields stay empty and are not printed.
 - **GS-6. Future configurability:** an authorised administrator may later be allowed to edit the scale (reserved permission `grading.scale.manage`). Any change creates a new scale version, applies only to terms whose results are not yet published, and is audit-logged. Published results keep the grade and scale version they were calculated with.
+
+### 1.9 Examination absence policy and lock (confirmed by the project owner, C-07)
+
+**The two absence-handling options.** These definitions are **[TO CONFIRM]** (Q-E12); the lock rules below are confirmed.
+
+| Option | Effect when a student is ABSENT for a subject's examination | Example: marks 60, 55 and one ABSENT |
+|---|---|---|
+| **ZERO** | The absent subject counts as **0 out of 100** and stays in both totals | 115 ÷ 300 = 38.33% → FAIL |
+| **EXCLUDE** | The absent subject is **left out of both totals**, like EXEMPT | 115 ÷ 200 = 57.50% → PASS |
+
+The example shows why the choice must be fixed before examinations and cannot be changed quietly afterwards: it can turn PASS into FAIL and decide whether a student repeats a grade (C-06).
+
+**Rules**
+
+| Rule | Policy |
+|------|--------|
+| **AP-1** | The **School Admin must select** ZERO or EXCLUDE for an academic year **before that year's examinations begin**. There is no silent default: a Mid Term or Final Term examination cannot be opened for marks entry until a policy is selected. |
+| **AP-2** | The selected policy applies **consistently** to every examination of that academic year (Mid Term and Final Term), every student and every subject. |
+| **AP-3** | **Locked once examinations have started.** Examinations count as started when the year's first examination enters marks entry or its first paper date arrives, whichever is earlier. From then on the policy cannot be changed through ordinary settings. |
+| **AP-4** | **Fully locked once results are published.** After an examination period (Mid Term or Final Term) is published, the policy is fully locked for that period. Its published results keep the policy they were calculated with. |
+| **AP-5** | **Exceptional correction only.** A change after AP-3 requires the authorised correction process: (1) School Admin with `exams.absence_policy.correct` starts a correction with a mandatory reason; (2) the affected examination periods are unlocked; (3) results are recalculated under the new policy and **republished** as a new result version, keeping the previous published version in history; (4) end-of-year outcomes are recalculated where Final Term is affected (C-06), including the next-year enrolment if rollover has already run; (5) the Principal and School Admins are notified. |
+| **AP-6** | **Audit:** every selection, ordinary change (before AP-3) and correction records the **previous policy, new policy, reason, authorised user and date/time**, in the policy history and the audit log. |
+| **AP-7** | **Never silent:** the system never changes absence handling on its own, and never recalculates published results except through the AP-5 correction and republication process. No background job, setting change or data import may alter published results. |
+
 
 ---
 
@@ -230,12 +254,13 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-EXM-03 | Exam lifecycle: DRAFT → SCHEDULED → MARKS_ENTRY → LOCKED → PUBLISHED. Marks are only editable during MARKS_ENTRY. Unlocking needs Principal or School Admin permission and a stated reason, and is audit-logged. | M |
 | FR-EXM-04 | Exam timetable / schedule PDF per grade level, per term (Mid Term, Final Term) | S |
 | FR-EXM-05 | The **official grading scale** (§1.8) is seeded and read-only in v1, and is applied independently to Mid Term and Final Term. Future: an authorised administrator may edit it, with versioning and no effect on published results (GS-6). | M |
+| FR-EXM-06 | **Examination absence policy:** the School Admin selects ZERO or EXCLUDE for each academic year before its examinations begin. The policy applies to all examinations of that year, is locked once examinations start, is fully locked for each published period, and can change afterwards only through the audited correction and republication process (§1.9, AP-1 to AP-7). | M |
 
 ### 2.12 Marks & Results (MRK)
 | ID | Requirement | P |
 |----|-------------|---|
 | FR-MRK-01 | Mark entry grid per exam paper and section. Teachers see only their assigned section and subject combinations. | M |
-| FR-MRK-02 | Validation: mark is a whole number from 0 to 100 **[PROPOSED]** (Q-E8). Mark a student ABSENT or EXEMPT instead of entering a score. | M |
+| FR-MRK-02 | Validation: mark is a whole number from 0 to 100 **[PROPOSED]** (Q-E8). Mark a student ABSENT or EXEMPT instead of entering a score. ABSENT is treated according to the year's absence policy (FR-EXM-06). | M |
 | FR-MRK-03 | Autosave drafts. Show entry progress per paper (entered / total). | S |
 | FR-MRK-04 | Automatically compute per-student results for each term: each subject's mark out of 100, percentage and letter grade; total marks obtained, total possible marks, overall term percentage (exact, C-05) and overall letter grade. **Final Term:** automatic PASS (≥ 50) / FAIL (< 50) from the overall percentage, and the automatic end-of-year outcome (PROMOTED / REPEAT GRADE). **Mid Term:** no PASS/FAIL decision (GP-3, GP-8, GP-10 to GP-13). | M |
 | FR-MRK-05 | The Mid Term result and the Final Term result are computed **independently**. No combined annual result, weighted or otherwise, is computed in v1 (GP-5). | M |

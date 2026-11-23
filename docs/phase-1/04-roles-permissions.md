@@ -45,7 +45,7 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
 | Staff | `staff.read`, `staff.manage`, `staff.sensitive.read` (salary, national ID), `staff.export` |
 | Student attendance | `attendance.read`, `attendance.take`, `attendance.edit_locked` |
 | Staff attendance | `staff_attendance.read`, `staff_attendance.record`, `staff_leave.approve` |
-| Exams | `exams.read`, `exams.manage`, `exams.lock`, `exams.publish`, `exams.unlock` |
+| Exams | `exams.read`, `exams.manage`, `exams.lock`, `exams.publish`, `exams.unlock`, `exams.absence_policy.select` (before examinations start), `exams.absence_policy.correct` (exceptional, audited correction and republication) |
 | Grading scale | `grading.scale.read`; `grading.scale.manage` (reserved for future editing by an authorised administrator, inactive in v1: the official scale is read-only) |
 | Marks/results | `marks.read`, `marks.enter`, `marks.import`, `results.read`, `rankings.read`, `results.annual_policy.manage` (reserved for the future annual result policy, School Admin only, inactive in v1) |
 | Report cards | `report_cards.generate`, `report_cards.remarks.manage` |
@@ -92,6 +92,9 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Staff attendance & leave | — | F | F | — | O (R) |
 | Exams: create, schedule | — | F | F | — | — |
 | Exams: lock / publish / unlock | — | F | F | — | — |
+| Examination absence policy: view | — | R | R | — | R |
+| Examination absence policy: select / change before exams start | — | F | — | — | — |
+| Examination absence policy: exceptional correction (after lock) | — | F (reason required, audited, republish) | — | — | — |
 | Marks entry | — | F | F | — | S |
 | Marks import (Excel) | — | F | F | — | S |
 | Results, rankings | — | F | F | — | S (R) |
@@ -132,6 +135,8 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Refund credit | Accountant | School Admin | Creates an expense/refund transaction |
 | Unlock a locked/published exam | Principal or School Admin | — (self, with reason) | Snapshots invalidated; notification to School Admin |
 | End-of-year outcome (PASS → promoted, FAIL → repeat grade) | System (automatic on Final Term publish) | **None: no approval step** (C-06) | Recorded and audit-logged as a system action. Changes only via an audited exam unlock and re-publish. |
+| Select the examination absence policy | School Admin | — | Before the year's examinations start; audited (previous/new/reason/user/date) |
+| Correct the absence policy after examinations started or results were published | School Admin (`exams.absence_policy.correct`) | — (self, mandatory reason) | Affected periods recalculated and republished as a new result version; old version kept; outcomes recalculated; Principal and School Admins notified; audited |
 | Edit attendance after lock window | Principal/School Admin | — | Audited with reason |
 | Change a user's roles | School Admin | — | Audited; permission version bumped; sessions refreshed |
 | Super Admin support session | Super Admin | — | Reason, time limit; visible in the school's audit log |
