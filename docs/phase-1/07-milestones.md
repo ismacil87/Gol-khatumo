@@ -71,15 +71,21 @@ A phase is complete only when **all** of the following hold:
 - Timetable rejects a teacher double-booking and a section slot clash with clear localized messages.
 - A teacher can take attendance only for assigned sections, on working days, within the edit window. The Principal can edit later, with a reason (audited).
 - Monthly attendance register for a section matches the raw records. Holidays are excluded.
-- Rollover is available only after Final Term results are published (stubbed until Phase 6). The preview lists promote/repeat/graduate per student. Commit creates next-year enrolments correctly. Re-running the commit does nothing.
+- Rollover is available only after Final Term results are published (stubbed until Phase 6). The preview shows each student's automatic outcome (PROMOTED → next grade level, REPEAT GRADE → same grade level, GRADUATED). The outcomes cannot be edited in the preview or through the API. Commit creates next-year enrolments accordingly, and re-running the commit does nothing.
 
 ### Phase 6 — Examinations & results
 **Deliverables:** official grading scale (seeded, read-only), one examination per term with one paper per subject out of 100, lifecycle (draft → publish, unlock), mark entry grid (autosave, progress), marks computation, independent Mid Term and Final Term results (each out of 100%), rankings with tie rules, result snapshots, report card remarks, Mid Term and Final Term report card PDFs (first version), exam schedule per term, mark sheet/broadsheet.
 
 **Acceptance criteria**
 - Every exam belongs to Mid Term or Final Term, and paper dates outside that term are rejected. A second examination in the same term, a second paper for the same grade level and subject, or maximum marks other than 100 are rejected.
-- **Grading scale boundaries:** automated tests cover every boundary of the official scale: 100 and 91 → A+, 90 and 85 → A-, 84 and 80 → B+, 79 and 75 → B, 74 and 70 → C+, 69 and 65 → C, 64 and 60 → D+, 59 and 50 → D, 49 and 0 → F. Non-whole percentages follow the rule confirmed in Q-E8.
-- **PASS/FAIL:** a Final Term overall percentage of 50 gives PASS and 49.99 gives FAIL. Mid Term results show "no PASS/FAIL decision". A student who scored below 50 in Mid Term but at least 50 in Final Term is PASS, and the reverse is FAIL.
+- **Grading scale boundaries:** automated tests cover every boundary of the official scale: 100 and 91 → A+, 90 and 85 → A-, 84 and 80 → B+, 79 and 75 → B, 74 and 70 → C+, 69 and 65 → C, 64 and 60 → D+, 59 and 50 → D, 49 and 0 → F. Overall percentages use exact values, with no rounding: 90.6% → A-, 84.99% → B+.
+- **PASS/FAIL from overall marks across all subjects (C-05)**, with hand-calculated fixtures:
+  - Marks 40, 60, 55 → 155/300 = 51.666…% (shown 51.66%) → **PASS**, even though one subject is F (the subject still shows grade F).
+  - Marks 45, 50, 54 → 149/300 = 49.666…% (shown 49.66%) → **FAIL**.
+  - 7 subjects, 350/700 = 50.00% → **PASS**; 349/700 = 49.857…% → **FAIL**, displayed as 49.85% (truncated), never as 50%.
+  - EXEMPT subjects are excluded from both totals; ABSENT follows Q-E3.
+  - Mid Term shows "no PASS/FAIL decision". A student below 50% overall in Mid Term but ≥ 50% overall in Final Term is PASS, and the reverse is FAIL.
+- **Automatic outcome (C-06):** publishing Final Term sets PROMOTED for every PASS and REPEAT GRADE for every FAIL (GRADUATED in the highest grade, per Q-E10), with no approval step. Outcomes appear on the student profile, the rollover preview and the Final Term report card. No role can override them: tests assert that the API has no endpoint for it and that attempts are rejected. Correcting Final Term marks through unlock → re-publish recalculates the outcome, audit-logged.
 - The grading scale is read-only in v1. Any attempt to edit it is rejected, and published snapshots record the scale version.
 - Publishing Mid Term produces Mid Term results, grades and ranks. Publishing Final Term produces Final Term results, grades and ranks. Each is calculated independently on a 100% scale and matches hand-calculated fixtures.
 - No subject term mark can exceed 100, and the overall term percentage is between 0 and 100.

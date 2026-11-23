@@ -15,7 +15,7 @@
 | 9 | **Student Attendance** | Daily attendance per section | AttendanceSession, StudentAttendance | 3, 6, 7 (teacher scope), 2 (calendar) | 5 |
 | 10 | **Teacher Attendance** | Staff daily attendance and leave | StaffAttendance, StaffLeave | 5, 2 | 5 |
 | 11 | **Examination** | One examination per term (Mid Term, Final Term) with one paper per subject out of 100, schedule, lifecycle, official grading scale (read-only in v1) | Exam, ExamPaper, GradingScale, GradeBand | 2, 6, 7 | 6 |
-| 12 | **Marks & Results** | Mark entry and automatic computation of percentages and letter grades; Mid Term and Final Term results, each independent and out of 100%; automatic PASS/FAIL from the Final Term result (no combined annual result in v1) | Mark, ResultSnapshot | 11, 3 | 6 |
+| 12 | **Marks & Results** | Mark entry and automatic computation of percentages and letter grades; Mid Term and Final Term results, each independent and out of 100%; automatic PASS/FAIL from the overall Final Term percentage across all subjects, and the automatic end-of-year outcome (promoted / repeat grade) | Mark, ResultSnapshot | 11, 3 | 6 |
 | 13 | **Student Ranking** | Section and grade ranks per exam and per term (Mid Term, Final Term), top-N lists | (part of ResultSnapshot) | 12 | 6 |
 | 14 | **Report Cards** | Official Mid Term and Final Term report card PDFs with remarks; both term results shown separately | ReportCardRemark | 12, 13, 9 (attendance summary), PDF engine | 6 (+ PDF polish in 9) |
 | 15 | **Fees & Fee Structures** | Fee categories, structures per grade/year, charge generation, discounts, waivers | FeeCategory, FeeStructure, FeeStructureItem, ChargeRun, FeeCharge, StudentDiscount, ChargeAdjustment | 2, 3, 6, 17 | 7 |
@@ -79,7 +79,7 @@ flowchart TD
 5. **Library and transport bill through fees.** Lost books and transport create `fee_charge` rows (sources `LIBRARY`, `TRANSPORT`), so there is one ledger and one balance per student.
 6. **Exams publish snapshots.** Ranking and report cards read result snapshots, never live marks.
 7. **Domain events drive notifications.** Modules emit events (`attendance.missing`, `exam.published`, `payment.voided`, `inventory.low_stock`, `library.overdue`, `import.completed`) and the notification module subscribes. Modules do not call each other for notifications.
-8. **The term is the time axis of the year.** Each academic year has two terms, Mid Term and Final Term. Exams belong to a term; termly fees are charged per term; attendance, results, rankings and report cards are summarised per term; Mid Term and Final Term results are independent (each out of 100%) and are never combined in v1. Publishing Final Term results enables rollover, not an annual result.
+8. **The term is the time axis of the year.** Each academic year has two terms, Mid Term and Final Term. Exams belong to a term; termly fees are charged per term; attendance, results, rankings and report cards are summarised per term; Mid Term and Final Term results are independent (each out of 100%) and are never combined in v1. Publishing Final Term results automatically decides PASS/FAIL and promotion or repetition (from the overall Final Term percentage across all subjects) and enables rollover. It does not produce an annual result.
 9. **Audit is cross-cutting.** Services call `audit.record(...)` inside the same transaction for every operation listed in 06 — Security §8.
 
 ## 4. Year lifecycle (how modules interact over a school year)
@@ -100,10 +100,10 @@ stateDiagram-v2
     [*] --> FT_Run
     FT_Run: Final Term — attendance · Final Term fee charges · payments · Final Term exams → marks
     FT_Run --> FT_Pub: Publish Final Term results
-    FT_Pub: Final Term results & ranking · Final Term report cards (Mid Term shown separately)
+    FT_Pub: Final Term results & ranking · automatic PASS/FAIL & outcome (promoted / repeat grade) · Final Term report cards
   }
   FinalTerm --> Rollover: Final Term closed
-  Rollover --> Closed: Promote / repeat / graduate (preview → commit) · year read-only
+  Rollover --> Closed: Place students by automatic outcome (PASS → next grade, FAIL → same grade) · year read-only
   Closed --> [*]
 ```
 

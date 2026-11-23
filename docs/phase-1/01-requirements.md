@@ -52,7 +52,7 @@ Gol Khatumo School uses **terms, not semesters**. Each academic year has exactly
 | Sequence | Official label | Role in the year |
 |----------|----------------|------------------|
 | 1 | **Mid Term** | First term of the academic year |
-| 2 | **Final Term** | Second and last term. Its close completes the academic year (promotion decisions). Its result is independent of Mid Term (GP-2, GP-5). |
+| 2 | **Final Term** | Second and last term. Its overall percentage decides PASS/FAIL and, automatically, promotion or repetition of the grade (C-05, C-06). Its result is independent of Mid Term (GP-2, GP-5). |
 
 ```mermaid
 flowchart LR
@@ -81,15 +81,17 @@ Rules:
 |------|--------|
 | **GP-1** | The **Mid Term** result is calculated independently, on a 100% scale. |
 | **GP-2** | The **Final Term** result is calculated independently, on a 100% scale. |
-| **GP-3** | Each term has **one examination per subject, marked out of 100**. That mark is the subject's term mark and percentage. The overall term percentage is the student's total term marks ÷ (100 × number of counted subjects) × 100, which is the average of the subject marks. The system calculates percentages and letter grades automatically. |
+| **GP-3** | Each term has **one examination per subject, marked out of 100**. The system calculates each subject's percentage and letter grade automatically, and the **overall term percentage = (total marks obtained across all subjects taken ÷ total possible marks across those subjects) × 100** (C-05). Example: marks 40, 60, 55 → 155 ÷ 300 × 100 = 51.666…%, displayed as 51.66%. |
 | **GP-4** | The **official grading scale** (§1.8) is applied **independently** to Mid Term and to Final Term: a letter grade for each subject and an overall letter grade for each term. |
 | **GP-5** | **No combined annual result in the initial release.** The system does not combine Mid Term and Final Term with any weighting (50/50, 40/60 or any other), and does **not** treat the Final Term result as the annual result. |
 | **GP-6** | Both term results are displayed **separately**: on screens, in rankings, on mark sheets and on report cards. |
 | **GP-7** | Rankings are per exam and per term (Mid Term, Final Term). There is no annual ranking in v1. |
-| **GP-8** | At year end, the rollover preview shows each student's Final Term PASS/FAIL status next to both term results. The system does not compute a combined promotion score. Whether FAIL automatically means repeating the grade is still open (Q-E5); until it is confirmed, the Principal/School Admin confirms each promotion decision. |
+| **GP-8** | **End-of-year outcome is automatic (C-06):** Final Term overall percentage ≥ 50 → **PASS → PROMOTED** (eligible to progress to the next grade); < 50 → **FAIL → REPEAT GRADE** (the student repeats the same grade in the next academic year). No Principal or School Admin approval is needed to decide PASS/FAIL or repetition, and no role can override it. The outcome is recorded and displayed. Mid Term plays no part in it. |
 | **GP-9** | No other assessments (monthly tests, coursework, quizzes) and no weighting contribute to a term result in v1. The term's single examination per subject is the term result. |
-| **GP-10** | **Automatic PASS/FAIL is decided by the Final Term result:** overall Final Term percentage **≥ 50 → PASS**, **< 50 → FAIL**. |
-| **GP-11** | The **Mid Term** result has no PASS/FAIL decision. It stays separate and never overrides the Final Term decision; a Mid Term percentage below 50 is shown only as grade F for that term. The Mid Term result status is shown as "Mid Term – no PASS/FAIL decision". |
+| **GP-10** | **PASS/FAIL uses overall marks across all subjects, not individual subjects (C-05):** overall Final Term percentage **≥ 50 → PASS**, **< 50 → FAIL**. A student is **not** failed for scoring below 50 in one or more individual subjects if the overall term percentage is at least 50. Subject grades (including F) are still calculated and shown separately. |
+| **GP-11** | The **Mid Term** result is independent: its overall percentage and grades are calculated the same way, but it has **no PASS/FAIL decision**, is never combined with Final Term, and does not determine promotion or repetition. Its result status is shown as "Mid Term – no PASS/FAIL decision". |
+| **GP-12** | **Exact percentages, no rounding (C-05):** grades and PASS/FAIL are determined from the exact percentage. Internally the comparison uses the exact totals (e.g. PASS when total obtained × 100 ≥ 50 × total possible), so no rounding can change a decision. Displayed percentages are shown to 2 decimals and **truncated, never rounded up**: 349 ÷ 700 = 49.857…% displays as 49.85% and is FAIL; it is never shown as 50%. |
+| **GP-13** | **Subjects taken:** every subject the student sat in that term counts toward both totals. EXEMPT subjects are excluded from both totals. **[PROPOSED]** A subject marked ABSENT counts as 0 out of 100 (Q-E3). A student's term result is calculated only when all of their marks are entered. |
 
 **Future flexibility (architecture only, not active in v1):** the data model reserves an **annual result policy** per academic year. Its mode is `NONE` (the current policy) and is fixed to `NONE` in v1. A later release may allow an authorised School Admin to configure how Mid Term and Final Term contribute to an annual result, but only:
 - after the school formally approves an annual calculation policy (approval reference, approver and date recorded);
@@ -114,8 +116,8 @@ Until then no annual percentage, annual grade or annual rank is calculated, stor
 Rules:
 - **GS-1.** This is the only grading scale in the initial release. It is seeded for Gol Khatumo School as "GKS Official Grading Scale", version 1, and is **read-only** in v1.
 - **GS-2.** The scale applies to subject marks and to overall term percentages, independently for Mid Term and Final Term (GP-4).
-- **GS-3.** The system assigns the grade whose lower bound is the highest one not above the percentage. With whole-number marks this reproduces the table exactly. **[PROPOSED]** Overall term percentages that are not whole numbers (e.g. 90.6) are graded on the exact, unrounded value (90.6 → A-, 49.9 → F/FAIL). The school should confirm this or choose rounding to the nearest whole number first (Q-E8).
-- **GS-4.** The PASS threshold (50) equals the D/F boundary. PASS/FAIL is applied only to the Final Term overall percentage (GP-10).
+- **GS-3.** The system assigns the grade whose lower bound is the highest one not above the **exact** percentage, with no rounding (C-05). Examples: overall 90.6% → A- (not A+); 84.99% → B+; 49.86% → F. Subject marks are whole numbers (Q-E8), so subject grades follow the table exactly.
+- **GS-4.** The PASS threshold (50) equals the D/F boundary. PASS/FAIL applies only to the **overall** Final Term percentage (GP-10). A subject grade of F does not by itself cause FAIL.
 - **GS-5.** The school did not provide grade remarks or grade points. Those optional fields stay empty and are not printed.
 - **GS-6. Future configurability:** an authorised administrator may later be allowed to edit the scale (reserved permission `grading.scale.manage`). Any change creates a new scale version, applies only to terms whose results are not yet published, and is audit-logged. Published results keep the grade and scale version they were calculated with.
 
@@ -142,7 +144,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-SCH-04 | Create academic years with start and end dates. Exactly one year per school is *current*. A year can be closed (read-only). | M |
 | FR-SCH-05 | Each academic year contains two terms, **Mid Term** and **Final Term**, with start and end dates, created automatically with the year (AS-1 to AS-3). The School Admin edits dates; the term structure is copied to each new year. | M |
 | FR-SCH-06 | Configure working days, school holidays and closure dates. Attendance is not expected on these days. | S |
-| FR-SCH-07 | Year-end rollover, after Final Term results are published: the Principal/School Admin decides, with the Final Term PASS/FAIL status and both term results shown separately (GP-8), to promote students to the next grade, repeat, graduate or withdraw, with a preview before committing | M |
+| FR-SCH-07 | Year-end rollover, after Final Term results are published. The end-of-year outcome is **already decided automatically** from the Final Term overall percentage (GP-8): PROMOTED students are enrolled in the next grade level, REPEAT GRADE students are enrolled in the same grade level for the next academic year, and PROMOTED students in the highest grade level are marked GRADUATED **[PROPOSED]** (Q-E10). The School Admin/Principal runs the rollover to place students into next-year sections and record withdrawals/transfers, but cannot change any PASS/FAIL or promotion/repetition outcome. Preview before commit. | M |
 | FR-SCH-08 | Configure numbering formats for admission numbers, employee numbers and receipt numbers | S |
 
 ### 2.3 Student Management (STU)
@@ -150,7 +152,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 |----|-------------|---|
 | FR-STU-01 | Register a student: admission number (auto or manual, unique per school), names in Somali naming order (given name, father's name, grandfather's name, optional family name), gender, date of birth, place of birth, nationality, address, photo, admission date, previous school, medical notes | M |
 | FR-STU-02 | Enrol the student in a section for an academic year. One active enrolment per student per year. | M |
-| FR-STU-03 | Student status lifecycle: ACTIVE, SUSPENDED, TRANSFERRED, WITHDRAWN, GRADUATED, with an effective date and reason | M |
+| FR-STU-03 | Student status lifecycle: ACTIVE, SUSPENDED, TRANSFERRED, WITHDRAWN, GRADUATED, with an effective date and reason. Each enrolment also records its automatic end-of-year outcome (PROMOTED, REPEAT_GRADE, GRADUATED), shown on the student profile and enrolment history. | M |
 | FR-STU-04 | Transfer a student between sections within the same year. Attendance and marks history is kept. | M |
 | FR-STU-05 | Student profile with tabs: details, guardians, enrolment history, attendance summary, results, fees (hidden from roles without finance permission), documents, transport, library loans | M |
 | FR-STU-06 | Search and filter by name, admission number, class/section, status, gender, fee status (paid/unpaid/partial/free) | M |
@@ -233,9 +235,9 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | ID | Requirement | P |
 |----|-------------|---|
 | FR-MRK-01 | Mark entry grid per exam paper and section. Teachers see only their assigned section and subject combinations. | M |
-| FR-MRK-02 | Validation: 0 ≤ mark ≤ 100 (whole numbers **[PROPOSED]**, Q-E8). Mark a student ABSENT or EXEMPT instead of entering a score. | M |
+| FR-MRK-02 | Validation: mark is a whole number from 0 to 100 **[PROPOSED]** (Q-E8). Mark a student ABSENT or EXEMPT instead of entering a score. | M |
 | FR-MRK-03 | Autosave drafts. Show entry progress per paper (entered / total). | S |
-| FR-MRK-04 | Automatically compute per-student results for each term: subject mark out of 100, percentage and letter grade; term total, overall term percentage and overall letter grade. **Final Term:** automatic PASS (≥ 50) / FAIL (< 50). **Mid Term:** no PASS/FAIL decision (GP-3, GP-4, GP-10, GP-11). | M |
+| FR-MRK-04 | Automatically compute per-student results for each term: each subject's mark out of 100, percentage and letter grade; total marks obtained, total possible marks, overall term percentage (exact, C-05) and overall letter grade. **Final Term:** automatic PASS (≥ 50) / FAIL (< 50) from the overall percentage, and the automatic end-of-year outcome (PROMOTED / REPEAT GRADE). **Mid Term:** no PASS/FAIL decision (GP-3, GP-8, GP-10 to GP-13). | M |
 | FR-MRK-05 | The Mid Term result and the Final Term result are computed **independently**. No combined annual result, weighted or otherwise, is computed in v1 (GP-5). | M |
 | FR-MRK-06 | Import marks from Excel per exam (see §2.26) | M |
 | FR-MRK-07 | Mark sheets / broadsheets per section (students × subjects), one per term, to PDF and Excel | M |
@@ -252,8 +254,8 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 ### 2.14 Report Cards (RPC)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-RPC-01 | Generate report cards per student, section or grade level as PDF. Two report card types: **Mid Term report card** (Mid Term results) and **Final Term report card** (Final Term results, grades, rank and the PASS/FAIL result status, with the Mid Term results shown alongside in a separate column for reference). **No combined or annual percentage, grade or rank** appears on either card (GP-5, GP-6). Layout per Q-E6. | M |
-| FR-RPC-02 | Contents: school header and logo, student details, term label; for each subject the **mark (out of 100), percentage and letter grade**; term total, overall term percentage, overall letter grade, term rank, **result status** (Final Term: PASS or FAIL; Mid Term: "Mid Term – no PASS/FAIL decision"), the grading scale legend, term attendance summary, class teacher and principal remarks, signatures, school stamp, date | M |
+| FR-RPC-01 | Generate report cards per student, section or grade level as PDF. Two report card types: **Mid Term report card** (Mid Term results) and **Final Term report card** (Final Term results, grades, rank the PASS/FAIL result status and the **end-of-year outcome** ("Promoted to {next grade}" / "Repeats {grade}" / "Graduated"), with the Mid Term results shown alongside in a separate column for reference). **No combined or annual percentage, grade or rank** appears on either card (GP-5, GP-6). Layout per Q-E6. | M |
+| FR-RPC-02 | Contents: school header and logo, student details, term label; for each subject the **mark (out of 100), percentage and letter grade**; **total marks obtained / total possible marks**, overall term percentage (2 decimals, truncated), overall letter grade, term rank, **result status** (Final Term: PASS or FAIL plus the end-of-year outcome; Mid Term: "Mid Term – no PASS/FAIL decision"), the grading scale legend, term attendance summary, class teacher and principal remarks, signatures, school stamp, date | M |
 | FR-RPC-03 | Report card language: Somali, English or bilingual | M |
 | FR-RPC-04 | Class teacher and principal remarks entered per student, with optional preset comments | S |
 | FR-RPC-05 | Only PUBLISHED results can appear on an official report card | M |

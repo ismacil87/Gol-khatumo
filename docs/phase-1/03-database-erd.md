@@ -177,7 +177,7 @@ erDiagram
     string name_en
     int display_order
     string level_group "PRIMARY|INTERMEDIATE|SECONDARY"
-    string next_grade_level_id FK "promotion target"
+    string next_grade_level_id FK "promotion target; null = final grade"
   }
   SECTION {
     string id PK
@@ -288,7 +288,9 @@ erDiagram
     date enrolled_on
     date left_on
     string status "ACTIVE|TRANSFERRED_OUT|COMPLETED|WITHDRAWN"
-    string outcome "PROMOTED|REPEATED|GRADUATED|null"
+    string outcome "PROMOTED|REPEAT_GRADE|GRADUATED|null (automatic)"
+    string outcome_snapshot_id FK "Final Term result it came from"
+    datetime outcome_determined_at
   }
   GUARDIAN {
     string id PK
@@ -450,6 +452,7 @@ erDiagram
   ENROLLMENT ||--o{ MARK : "earns"
   EXAM ||--o{ RESULT_SNAPSHOT : "published results"
   ENROLLMENT ||--o{ RESULT_SNAPSHOT : "for"
+  RESULT_SNAPSHOT |o--o| ENROLLMENT : "Final Term sets outcome"
   ENROLLMENT ||--o{ REPORT_CARD_REMARK : "remarks"
   TERM ||--o{ RESULT_SNAPSHOT : "term results"
   GRADING_SCALE ||--o{ RESULT_SNAPSHOT : "graded with (version kept)"
@@ -510,14 +513,15 @@ erDiagram
     string exam_id FK "set when scope = EXAM"
     string term_id FK "Mid Term or Final Term"
     string enrollment_id FK
-    decimal total_score
-    decimal total_max
-    decimal percentage "0-100, term result"
+    decimal total_score "total marks obtained, all subjects taken"
+    decimal total_max "total possible marks, all subjects taken"
+    decimal percentage "exact, for display only (truncated 2 dp)"
     string grade "overall term letter grade"
     int rank_in_section
     int rank_in_grade
     int section_size
     string result_status "PASS|FAIL (Final Term) or NOT_APPLICABLE (Mid Term)"
+    string end_of_year_outcome "PROMOTED|REPEAT_GRADE|GRADUATED (Final Term only)"
     string grading_scale_id FK
     int grading_scale_version
     json subject_breakdown "per subject: mark out of 100, percentage, letter grade"
@@ -546,7 +550,11 @@ Rules:
 - `UNIQUE (school_id, exam_paper_id, enrollment_id)` on marks.
 - **One examination per term (v1):** `UNIQUE (school_id, term_id)` on `exam`; `UNIQUE (school_id, exam_id, grade_level_id, subject_id)` on `exam_paper`; `max_marks = 100` (check constraint); `0 ≤ score ≤ 100` (check constraint).
 - **Official grading scale (seeded, C-03):** `grading_scale` "GKS Official Grading Scale" v1, `pass_threshold = 50`, `is_editable = false`, with `grade_band` rows (min → grade): 91 A+, 85 A-, 80 B+, 75 B, 70 C+, 65 C, 60 D+, 50 D, 0 F. The grade is the band with the highest `min_percent` ≤ the percentage (see Requirements §1.8 GS-3 and Q-E8 for non-whole percentages).
-- **Result status:** for the Final Term snapshot, `result_status = PASS` if `percentage ≥ pass_threshold`, otherwise `FAIL`. For the Mid Term snapshot, `result_status = NOT_APPLICABLE`. The Mid Term snapshot never affects the Final Term status.
+- **Overall percentage (C-05):** `total_score` = sum of marks obtained across all subjects taken in the term; `total_max` = sum of possible marks across those subjects (100 each). EXEMPT subjects are excluded from both; ABSENT counts as 0 out of 100 **[PROPOSED]** (Q-E3).
+- **Result status (C-05):** Final Term `result_status = PASS` when `total_score × 100 ≥ pass_threshold × total_max`, else `FAIL`. This compares the exact totals, so there is no rounding. Individual subject grades never decide PASS/FAIL. For the Mid Term snapshot, `result_status = NOT_APPLICABLE`. Mid Term never affects the Final Term status or the outcome.
+- **Grade from exact percentage:** the overall grade uses the same exact comparison against each band's `min_percent` (`total_score × 100 ≥ min_percent × total_max`). `percentage` is stored for display and reporting only and is never used for decisions.
+- **End-of-year outcome (C-06), automatic:** when the Final Term exam is published, `end_of_year_outcome` is set on each Final Term snapshot: PASS → `PROMOTED` (or `GRADUATED` when the grade level has no `next_grade_level_id`, **[PROPOSED]** Q-E10); FAIL → `REPEAT_GRADE`. It is copied to `enrollment.outcome` with `outcome_snapshot_id`, by the system actor, with an audit entry. No approval step exists, and no API lets a user set or override `outcome`.
+- **Corrections:** an outcome changes only if Final Term marks are corrected through the audited unlock → re-publish flow before rollover commits. After rollover, a correction also moves the next-year enrolment (same grade level ↔ next grade level), audit-logged.
 - Snapshots store `grading_scale_id` and `grading_scale_version`, so a future scale change never alters published grades.
 - Every exam belongs to exactly one term (Mid Term or Final Term), and its paper dates must fall inside that term.
 - Result levels in v1: **EXAM** → **TERM**. The Mid Term result and the Final Term result are each calculated independently on a 100% scale: every subject's term mark is out of 100 (`total_max` = 100 × counted subjects), and the grading scale is applied per term. Ranks are computed per exam and per term.

@@ -36,7 +36,7 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
 |--------|-------------|
 | Platform | `platform.schools.manage`, `platform.settings.manage`, `platform.users.manage`, `platform.audit.read`, `platform.support.start` |
 | School settings | `school.settings.read`, `school.settings.manage` |
-| Academic years/terms | `academic.years.read`, `academic.years.manage`, `academic.rollover.run` |
+| Academic years/terms | `academic.years.read`, `academic.years.manage`, `academic.rollover.run` (places students into next-year sections according to the automatic outcomes; cannot change them) |
 | Classes/sections | `classes.read`, `classes.manage` |
 | Subjects/assignments | `subjects.read`, `subjects.manage`, `assignments.manage` |
 | Timetable | `timetable.read`, `timetable.manage` |
@@ -75,7 +75,9 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Dashboard | Platform | School | Academic | Finance | Own classes |
 | School profile & settings | — | F | R | R | — |
 | Academic years, terms, calendar | — | F | F | R | R |
-| Year-end rollover / promotion | — | F | F | — | — |
+| Year-end rollover (run placement) | — | F | F | — | — |
+| PASS/FAIL and promotion/repetition outcome: view | — | R | R | R | S (R) |
+| PASS/FAIL and promotion/repetition outcome: approve or override | — | — (automatic, C-06) | — (automatic) | — | — |
 | Grade levels & sections | — | F | F | R | S (R) |
 | Subjects & teaching assignments | — | F | F | — | S (R) |
 | Timetable | — | F | F | — | S (R, own) |
@@ -129,6 +131,7 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Void a payment | Accountant | School Admin | Receipt stays, marked VOID; income transaction voided |
 | Refund credit | Accountant | School Admin | Creates an expense/refund transaction |
 | Unlock a locked/published exam | Principal or School Admin | — (self, with reason) | Snapshots invalidated; notification to School Admin |
+| End-of-year outcome (PASS → promoted, FAIL → repeat grade) | System (automatic on Final Term publish) | **None: no approval step** (C-06) | Recorded and audit-logged as a system action. Changes only via an audited exam unlock and re-publish. |
 | Edit attendance after lock window | Principal/School Admin | — | Audited with reason |
 | Change a user's roles | School Admin | — | Audited; permission version bumped; sessions refreshed |
 | Super Admin support session | Super Admin | — | Reason, time limit; visible in the school's audit log |
