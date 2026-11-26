@@ -9,7 +9,7 @@ GKSMS is a cloud-based, multi-school management platform. It digitises a school'
 | # | Goal | Measure of success |
 |---|------|--------------------|
 | G1 | Replace paper and spreadsheet records with one system of record | All active students, staff, fees and marks for the current academic year are managed in GKSMS |
-| G2 | Accurate, auditable finances | Every payment has a receipt. Outstanding balances reconcile with charges minus payments. Free students show zero debt. |
+| G2 | Accurate, auditable finances | Every payment has a receipt. Outstanding balances reconcile with charges minus payments. Free students are never charged tuition (C-17). |
 | G3 | Fast, reliable academic reporting | Report cards and rankings for a whole class are produced as PDF in minutes, not days |
 | G4 | Bilingual and accessible | Every screen and every PDF is available in Somali and English |
 | G5 | Multi-school ready | A new school can be onboarded by the Super Admin through the UI, without engineering work |
@@ -40,7 +40,7 @@ GKSMS is a cloud-based, multi-school management platform. It digitises a school'
 
 ### 1.5 Assumptions
 - **A1.** Schools follow a Gregorian academic year divided into **terms, not semesters**. For Gol Khatumo School the year has exactly **two terms: Mid Term and Final Term** (see §1.6).
-- **A2.** One currency per school. **[PROPOSED]** The default is USD. See Q-F1.
+- **A2.** **USD is the only currency** for the initial release. There are no multi-currency payments or exchange rates (confirmed, C-16).
 - **A3.** The default time zone is Africa/Mogadishu (EAT, UTC+3), configurable per school.
 - **A4.** School working days are configurable per school (for example Saturday–Wednesday or Saturday–Thursday).
 - **A5.** Internet access at schools may be slow or intermittent. The UI must be lightweight and must tolerate retries. Full offline mode is not in v1 (Q-G2).
@@ -90,11 +90,11 @@ Rules:
 | **GP-9** | No other assessments (monthly tests, coursework, quizzes) and no weighting contribute to a term result in v1. The term's single examination per subject is the term result. |
 | **GP-10** | **PASS/FAIL in both terms, from overall marks across all subjects (C-05, C-14):** for **Mid Term and Final Term** alike, overall percentage **≥ 50 → PASS**, **< 50 → FAIL**. A student is **not** failed for scoring below 50 in one or more individual subjects if the overall term percentage is at least 50. Subject grades (including F) are still calculated and shown separately. |
 | **GP-11** | **Mid Term PASS/FAIL is an academic progress assessment only (C-14).** The Mid Term result is calculated the same way (overall percentage, overall grade, PASS/FAIL) and displayed in term results and on the Mid Term report card, but it **never triggers promotion, repetition or graduation**, is never combined with Final Term, and never overrides the Final Term decision. Only the **Final Term** PASS/FAIL decides the end-of-year outcome (C-06, C-09). |
-| **GP-12** | **Exact percentages, no rounding (C-05):** grades and PASS/FAIL are determined from the exact percentage. Internally the comparison uses the exact totals (e.g. PASS when total obtained × 100 ≥ 50 × total possible), so no rounding can change a decision. Displayed percentages are shown to 2 decimals and **truncated, never rounded up**: 349 ÷ 700 = 49.857…% displays as 49.85% and is FAIL; it is never shown as 50%. |
+| **GP-12** | **Exact percentages, no rounding (C-04):** grades and PASS/FAIL are determined from the exact percentage. Internally the comparison uses the exact totals (e.g. PASS when total obtained × 100 ≥ 50 × total possible), so no rounding can change a decision. Displayed percentages are shown to 2 decimals and **truncated, never rounded up**: 349 ÷ 700 = 49.857…% displays as 49.85% and is FAIL; it is never shown as 50%. |
 | **GP-13** | **Subjects taken:** every subject the student was examined in that term counts toward both totals, **including subjects where the student was ABSENT** (0 out of 100, §1.9). Only EXEMPT subjects are excluded from both totals. A student's term result is calculated only when all of their marks (or ABSENT/EXEMPT statuses) are entered. |
 | **GP-14** | **Graduation (C-09):** a student is in the school's highest grade **only when that grade level is explicitly configured as the school's final grade** (`is_final_grade`, set by the School Admin; exactly one per school). A missing "next grade level" is **never** treated as graduation. A student in the configured final grade who PASSES the Final Term receives **GRADUATED**, their student status becomes GRADUATED at rollover, and no next-year enrolment is created. A student in the final grade who FAILS repeats it (REPEAT GRADE). **Configuration check:** Final Term results cannot be published while any grade level in the examination has neither a next grade level nor the final-grade flag. The School Admin is shown which grade levels to configure, so a PASS student is never left without a valid outcome. |
 | **GP-15** | **Late joiners (C-10):** a student who had **no active enrolment in the school on the first paper date of the Final Term examination** was not enrolled when the examination took place. They are not included in that examination: no marks and no ABSENT are recorded for them. They receive the outcome **PENDING PLACEMENT**. The **School Admin** decides their placement for the next academic year (next grade, same grade, or a final-grade student graduating), with a mandatory reason. The decision, reason, responsible user and date are stored and audit-logged. This rule **never** applies to students who were enrolled but absent: those receive ABSENT = 0/100 (C-07) and a normal automatic outcome. |
-| **GP-16** | **Ranking ties (C-11):** students are ranked by their **overall term percentage** (C-05). Students with **identical exact** overall percentages share the same rank, using **standard competition ranking**: 1, 2, 2, 4. "Identical" is judged on the exact value (the totals are compared exactly), not on the 2-decimal display, so two students who both display 78.83% can still have different ranks. Applied in the same way to Mid Term and Final Term, in section and grade-level rankings, and in every term ranking report. |
+| **GP-16** | **Ranking ties (C-11):** students are ranked by their **overall term percentage** (C-05). Students with **identical exact** overall percentages share the same rank, using **standard competition ranking**: 1, 2, 2, 4. "Identical" is judged on the exact value (the totals are compared exactly), not on the 2-decimal display, so two students who both display 78.83% can still have different ranks (C-04). Applied in the same way to Mid Term and Final Term, in section and grade-level rankings, and in every term ranking report. |
 
 **Future flexibility (architecture only, not active in v1):** the data model reserves an **annual result policy** per academic year. Its mode is `NONE` (the current policy) and is fixed to `NONE` in v1. A later release may allow an authorised School Admin to configure how Mid Term and Final Term contribute to an annual result, but only:
 - after the school formally approves an annual calculation policy (approval reference, approver and date recorded);
@@ -119,7 +119,7 @@ Until then no annual percentage, annual grade or annual rank is calculated, stor
 Rules:
 - **GS-1.** This is the only grading scale in the initial release. It is seeded for Gol Khatumo School as "GKS Official Grading Scale", version 1, and is **read-only** in v1.
 - **GS-2.** The scale applies to subject marks and to overall term percentages, independently for Mid Term and Final Term (GP-4).
-- **GS-3.** The system assigns the grade whose lower bound is the highest one not above the **exact** mark or percentage, with no rounding (C-05). This also applies to decimal marks (C-08), which can fall between two rows of the table: subject mark **90.25 → A-** and **90.5 → A-** (A+ starts at 91), **84.5 → B+**, **64.5 → D+**, **49.5 → F**. Overall: 90.6% → A-, 84.99% → B+, 49.86% → F.
+- **GS-3.** The system assigns the grade whose lower bound is the highest one not above the **exact** mark or percentage, with no rounding (C-04). This also applies to decimal marks (C-08), which can fall between two rows of the table: subject mark **90.25 → A-** and **90.5 → A-** (A+ starts at 91), **84.5 → B+**, **64.5 → D+**, **49.5 → F**. Overall: 90.6% → A-, 84.99% → B+, 49.86% → F.
 - **GS-4.** The PASS threshold (50) equals the D/F boundary. PASS/FAIL applies to the **overall** percentage of each term, Mid Term and Final Term (GP-10, C-14). A subject grade of F does not by itself cause FAIL. Only the Final Term PASS/FAIL decides promotion, repetition or graduation.
 - **GS-5.** The school did not provide grade remarks or grade points. Those optional fields stay empty and are not printed.
 - **GS-6. Future configurability:** an authorised administrator may later be allowed to edit the scale (reserved permission `grading.scale.manage`). Any change creates a new scale version, applies only to terms whose results are not yet published, and is audit-logged. Published results keep the grade and scale version they were calculated with.
@@ -155,7 +155,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 ### 2.2 School & Academic Year Management (SCH)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-SCH-01 | Super Admin creates, edits, suspends and reactivates schools: name (Somali/English), code, logo, address, phone, email, motto, region, currency, time zone, default language | M |
+| FR-SCH-01 | Super Admin creates, edits, suspends and reactivates schools: name (Somali/English), code, logo, address, phone, email, motto, region, time zone, default language. The currency is **USD** for every school in v1 and is not selectable (C-16). | M |
 | FR-SCH-02 | Super Admin creates the first School Admin account when onboarding a school | M |
 | FR-SCH-03 | School Admin maintains the school profile and official information used on PDFs (logo, stamp/signature images, principal's name, registration number) | M |
 | FR-SCH-04 | Create academic years with start and end dates. Exactly one year per school is *current*. A year can be closed (read-only). | M |
@@ -256,7 +256,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-MRK-01 | Mark entry grid per exam paper and section. Teachers see only their assigned section and subject combinations. | M |
 | FR-MRK-02 | Validation: mark from **0.00 to 100.00 with up to two decimal places** (e.g. 67.25, 78.50, 90.25) (C-08). Values above 100, below 0 or with more than two decimal places (e.g. 67.255) are **rejected, never rounded**. Record **ABSENT** (automatic 0/100) or **EXEMPT** instead of a score. | M |
 | FR-MRK-03 | Autosave drafts. Show entry progress per paper (entered / total). | S |
-| FR-MRK-04 | Automatically compute per-student results for each term (Mid Term and Final Term): each subject's mark out of 100, percentage and letter grade; total marks obtained, total possible marks, overall term percentage (exact, C-05), overall letter grade and **PASS (≥ 50) / FAIL (< 50)**. **Mid Term** PASS/FAIL is a progress assessment only (C-14). **Final Term** PASS/FAIL also sets the automatic end-of-year outcome (PROMOTED / REPEAT GRADE / GRADUATED) (GP-3, GP-8, GP-10 to GP-15). | M |
+| FR-MRK-04 | Automatically compute per-student results for each term (Mid Term and Final Term): each subject's mark out of 100, percentage and letter grade; total marks obtained, total possible marks, overall term percentage (exact, C-04, C-05), overall letter grade and **PASS (≥ 50) / FAIL (< 50)**. **Mid Term** PASS/FAIL is a progress assessment only (C-14). **Final Term** PASS/FAIL also sets the automatic end-of-year outcome (PROMOTED / REPEAT GRADE / GRADUATED) (GP-3, GP-8, GP-10 to GP-15). | M |
 | FR-MRK-05 | The Mid Term result and the Final Term result are computed **independently**. No combined annual result, weighted or otherwise, is computed in v1 (GP-5). | M |
 | FR-MRK-06 | Import marks from Excel per exam (see §2.26) | M |
 | FR-MRK-07 | Mark sheets / broadsheets per section (students × subjects), one per term, to PDF and Excel | M |
@@ -274,7 +274,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | ID | Requirement | P |
 |----|-------------|---|
 | FR-RPC-01 | Generate report cards per student, section or grade level as PDF. Two report card types: **Mid Term report card** (Mid Term results, grades, rank and PASS/FAIL as a progress assessment, with no outcome) and **Final Term report card** (Final Term results, grades, rank, the PASS/FAIL result status and the **end-of-year outcome** ("Promoted to {next grade}" / "Repeats {grade}" / "Graduated"), with the Mid Term results shown alongside in a separate column for reference). **No combined or annual percentage, grade or rank** appears on either card (GP-5, GP-6). Layout proposed in [09 — Report Card Layout](09-report-card-layout.md), pending approval (Q-E6). | M |
-| FR-RPC-02 | Contents: school header and logo, student details, term label; for each subject the **mark (out of 100), percentage and letter grade**; **total marks obtained / total possible marks**, overall term percentage (2 decimals, truncated), overall letter grade, term rank, **result status** (Mid Term: PASS or FAIL, labelled "academic progress assessment – does not affect promotion"; Final Term: PASS or FAIL plus the end-of-year outcome), the grading scale legend, term attendance summary, class teacher and principal remarks, signatures, school stamp, date | M |
+| FR-RPC-02 | Contents (the mandatory items are fixed whatever the open layout choices of Q-E6): school header and logo, student details including the **four-part name** (C-12), term label; for each subject the **mark (out of 100), percentage and letter grade**; **total marks obtained / total possible marks**, overall term percentage (2 decimals, truncated), overall letter grade, term rank, **result status** (Mid Term: PASS or FAIL, labelled "academic progress assessment – does not affect promotion"; Final Term: PASS or FAIL plus the end-of-year outcome), the grading scale legend, term attendance summary, class teacher and principal remarks, signatures, school stamp, date | M |
 | FR-RPC-03 | Report card language: Somali, English or bilingual | M |
 | FR-RPC-04 | Class teacher and principal remarks entered per student, with optional preset comments | S |
 | FR-RPC-05 | Only PUBLISHED results can appear on an official report card | M |
@@ -284,8 +284,8 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | ID | Requirement | P |
 |----|-------------|---|
 | FR-FEE-01 | Fee categories (Tuition, Registration, Exam, Transport, Uniform, Books, …) | M |
-| FR-FEE-02 | Fee structure per grade level per academic year: items with category, amount, frequency (ONE_TIME, MONTHLY, TERMLY, ANNUAL) and due rule. **TERMLY** means charged once per term, i.e. once for **Mid Term** and once for **Final Term**, due a configured number of days after the term starts. **MONTHLY** charges are labelled with the term their month falls in. | M |
-| FR-FEE-03 | Generate student charges (invoices) from fee structures for a billing period (a month, or a term: Mid Term / Final Term), for all fee-paying active students, with a preview. Running it again for the same period must not create duplicates (idempotent). | M |
+| FR-FEE-02 | Fee structure per grade level per academic year: items with category, amount, frequency and due rule. The supported frequencies are **MONTHLY, TERMLY and ONE_TIME**; **ANNUAL is not supported** (C-19). **ONE_TIME** means charged once per enrolment in the academic year (e.g. registration). **TERMLY** means charged once per term, i.e. once for **Mid Term** and once for **Final Term**, due a configured number of days after the term starts. **MONTHLY** charges are labelled with the term their month falls in. | M |
+| FR-FEE-03 | Generate student charges (invoices) from fee structures for a billing period (a month, a term — Mid Term / Final Term — or the one-time charges of the academic year), for all active students, with a preview. **Tuition** items are skipped for FREE students; all other items are charged to them normally (C-17). Running it again for the same period must not create duplicates (idempotent). | M |
 | FR-FEE-04 | Ad-hoc charges for an individual student (e.g. lost book, uniform) | M |
 | FR-FEE-05 | Discounts: partial reductions (percentage or fixed) per student per category, e.g. sibling or staff-child discounts | S (Q-F3) |
 | FR-FEE-06 | Waive or void a charge with a reason, an approval and an audit entry. Never hard-delete. | M |
@@ -305,17 +305,17 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 ### 2.17 Free Student Management (FRE)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-FRE-01 | Set a student's billing status per academic year: FEE_PAYING or FREE (fully exempt), with reason category (orphan, staff child, scholarship, hardship, other), notes, effective date and approver | M |
-| FR-FRE-02 | FREE students never receive generated charges and never have outstanding balances. Charge generation skips them, and the system rejects attempts to charge them, except for explicitly allowed non-tuition categories if the school enables that (Q-F2). | M |
-| FR-FRE-03 | **[PROPOSED]** Changing a student to FREE mid-year stops future charges. Existing unpaid charges are not removed automatically; the approver chooses to waive them or keep them, and the choice is audit-logged (Q-F4). | M |
+| FR-FRE-01 | Set a student's billing status per academic year: FEE_PAYING or FREE (**exempt from tuition fees only**, C-17), with reason category (orphan, staff child, scholarship, hardship, other), notes, effective date and approver | M |
+| FR-FRE-02 | **FREE students never receive tuition charges** and never owe tuition. Charge generation skips tuition items for them, and the system rejects any attempt to create a tuition charge for them. **Other configured charges** (e.g. books, uniforms, transport, registration, exam fees) **still apply** to FREE students and are generated, paid and reported normally (C-17). | M |
+| FR-FRE-03 | **Becoming FREE during the year (C-18):** when a student's status changes to FREE mid-year, **future tuition charges stop** (other charges continue, C-17). Existing unpaid charges are not changed automatically: the **School Admin** decides whether they **remain payable (KEEP)** or are **waived (WAIVE)**. The decision, reason, responsible user and date are recorded in the audit log. | M |
 | FR-FRE-04 | Free status is visible as a badge on student lists, profiles and financial reports | M |
-| FR-FRE-05 | Free student register report per class, with count and reason breakdown, and the estimated value of fees forgone | M |
+| FR-FRE-05 | Free student register report per class, with count and reason breakdown, and the estimated value of tuition forgone (C-17) | M |
 
 ### 2.18 Outstanding Balances (BAL)
 | ID | Requirement | P |
 |----|-------------|---|
 | FR-BAL-01 | A student's balance is the sum of non-void charges minus discounts, minus allocated payments, minus waivers. It is computed from the ledger, never typed in. | M |
-| FR-BAL-02 | Every student has exactly one fee status per period/year: **FREE**, **PAID** (balance = 0 and charges > 0), **PARTIAL** (0 < paid < due), **UNPAID** (paid = 0 and due > 0), plus **CREDIT** when overpaid | M |
+| FR-BAL-02 | Every student has exactly one fee status per period/year: **FREE**, **PAID** (balance = 0 and charges > 0), **PARTIAL** (0 < paid < due), **UNPAID** (paid = 0 and due > 0), plus **CREDIT** when overpaid. A FREE student shows **FREE** when they have no charges in the period; if they have non-tuition charges (C-17), the status is derived from those charges and shown next to the FREE badge. **[PROPOSED]** (Q-F12) | M |
 | FR-BAL-03 | Outstanding report by class/section, by student, by term (Mid Term / Final Term) and by aging bucket (0–30, 31–60, 61–90, 90+ days) | M |
 | FR-BAL-04 | Class-based financial report: per section, students, free count, expected, collected, outstanding, collection rate | M |
 | FR-BAL-05 | Student fee statement PDF (all charges, payments and running balance) | M |
@@ -354,7 +354,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-TRN-01 | Vehicles: plate number, type, capacity, driver (staff), status, insurance and inspection dates | M |
 | FR-TRN-02 | Routes and stops with pickup times | M |
 | FR-TRN-03 | Assign students to a route and stop with start and end dates; capacity check | M |
-| FR-TRN-04 | Transport fees through the normal fee system (TRANSPORT category, by route) | M |
+| FR-TRN-04 | Transport fees through the normal fee system (TRANSPORT category, by route). Transport is not tuition, so it also applies to FREE students (C-17). | M |
 | FR-TRN-05 | Route roster PDF for drivers | S |
 
 ### 2.23 Notifications (NTF)
@@ -377,7 +377,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 ### 2.25 User Management & Audit Logs (USR)
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-USR-01 | School Admin creates, edits, deactivates and reactivates staff users, assigns roles, resets passwords | M |
+| FR-USR-01 | School Admin creates, edits, deactivates and reactivates staff users, assigns roles, resets passwords. Each user logs in with **either an email address or a phone number** (at least one is required, each globally unique) plus a password (C-15). | M |
 | FR-USR-02 | Users cannot be hard-deleted once they have performed any action. They are deactivated instead. | M |
 | FR-USR-03 | Force password change on first login and after an admin reset | M |
 | FR-USR-04 | Session management: list active sessions, sign out other sessions; admin can revoke all sessions of a user | M |

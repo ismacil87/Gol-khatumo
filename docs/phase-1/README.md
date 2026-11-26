@@ -31,15 +31,18 @@
 | Languages | Somali and English, with a language switcher |
 | Academic structure | Two **terms** per academic year (not semesters): **Mid Term** and **Final Term** (confirmed, C-01) |
 | Grading | Mid Term and Final Term each calculated independently out of 100%, shown separately; no combined annual result (confirmed, C-02) |
-| Grading scale | 91–100 A+, 85–90 A-, 80–84 B+, 75–79 B, 70–74 C+, 65–69 C, 60–64 D+, 50–59 D, 0–49 F. One exam per subject per term out of 100. Final Term ≥ 50 = PASS (confirmed, C-03) |
-| PASS/FAIL | Both terms: overall percentage across all subjects (total obtained ÷ total possible × 100), exact, no rounding: ≥ 50% PASS, < 50% FAIL. One failed subject does not fail the student (C-05). Mid Term PASS/FAIL is a progress assessment only (C-14) |
+| Grading scale | 91–100 A+, 85–90 A-, 80–84 B+, 75–79 B, 70–74 C+, 65–69 C, 60–64 D+, 50–59 D, 0–49 F. One exam per subject per term out of 100 (confirmed, C-03). PASS/FAIL per term as below; only the Final Term decides promotion (C-06, C-14) |
+| PASS/FAIL | Both terms: overall percentage across all subjects (total obtained ÷ total possible × 100): ≥ 50% PASS, < 50% FAIL. One failed subject does not fail the student (C-05). Exact values decide; displayed percentages are truncated, never rounded (C-04). Mid Term PASS/FAIL is a progress assessment only (C-14) |
 | Promotion | Automatic: PASS → next grade (GRADUATED in the highest grade, C-09), FAIL → repeat the same grade; no approval; outcome recorded and displayed. Mid Term does not decide promotion (C-06). Late joiners → PENDING PLACEMENT, placed by the School Admin with an audited reason (C-10) |
 | Exam absence | ABSENT = automatic 0/100, included in the overall percentage; grades and PASS/FAIL calculated normally; no option to choose another policy (confirmed, C-07 revised) |
 | Marks | 0.00–100.00 with up to two decimal places, e.g. 67.25, 78.50, 90.25; more decimals rejected; no rounding (confirmed, C-08) |
 | Ranking | Exact overall term percentage; ties share a rank with competition ranking 1, 2, 2, 4 (confirmed, C-11) |
 | Student name | Four mandatory parts: First, Father's, Grandfather's, Fourth Name (confirmed, C-12) |
 | Parent/guardian | Full name and phone number mandatory for every student (confirmed, C-13) |
-| Users (v1) | Staff only. Parents and students have no login. |
+| Users (v1) | Staff only, logging in with email **or** phone number (confirmed, C-15). Parents and students have no login. |
+| Currency | USD only in the initial release (confirmed, C-16) |
+| FREE students | Exempt from tuition fees only; other configured charges (books, uniforms, transport, …) may apply (confirmed, C-17). Becoming FREE mid-year: the School Admin decides KEEP or WAIVE for existing unpaid charges, audit-logged; future tuition stops (confirmed, C-18) |
+| Fee frequencies | MONTHLY, TERMLY, ONE_TIME; no ANNUAL (confirmed, C-19) |
 | Roles | Platform Super Admin, School Admin, Principal, Accountant, Teacher |
 | Backend | Node.js + Express.js + TypeScript |
 | Frontend | React + TypeScript + Tailwind CSS |
@@ -49,15 +52,15 @@
 
 ## Decisions in this document that need your approval
 
-The documents use proposed defaults where the brief leaves something open. Each one is marked **[PROPOSED]** where it appears and is listed with its number in [08 — Open Questions](08-open-questions.md). The ones that most affect Phase 2:
+The documents use proposed defaults where the brief leaves something open. Each one is marked **[PROPOSED]** where it appears and is listed with its number in [08 — Open Questions](08-open-questions.md). Confirmed decisions are listed as C-01 to C-19 in 08 §0. The ones that most affect Phase 2:
 
-1. **Tenancy model:** one shared database and schema, a `school_id` column on every school-owned table, and isolation enforced in three layers: the application, composite foreign keys in the database, and automated tests.
+1. **Tenancy model:** one shared database and schema, a `school_id` column on every school-owned table, and isolation enforced in five layers: schema, composite foreign keys, a Prisma tenant extension, authorization checks and automated tests (02 — Architecture §6.2).
 2. **Monorepo:** pnpm workspaces with `apps/api`, `apps/web` and `packages/shared`.
 3. **PDF engine:** HTML/CSS templates rendered to PDF by headless Chromium in a background worker.
 4. **Background jobs:** Redis + BullMQ for PDF batches, imports and notifications.
-5. **Fee model:** charges (invoices) are generated from fee structures. Free students never receive charges. Payments are allocated to charges and are never deleted, only voided.
-6. **Login identifier:** email or phone number plus password. Short-lived access token, plus a rotating refresh token in an httpOnly cookie.
+5. **Fee model:** charges (invoices) are generated from fee structures. Free students never receive tuition charges; other configured charges still apply (C-17). Payments are allocated to charges and are never deleted, only voided.
+6. **Login identifier (confirmed, C-15):** email or phone number plus password. Short-lived access token, plus a rotating refresh token in an httpOnly cookie.
 
 ## Next step
 
-Review the eight documents, answer the questions in [08 — Open Questions](08-open-questions.md) (every one has a proposed default you can accept), and approve Phase 1. Phase 2 (project setup, database schema and backend foundation) starts only after that.
+Review the nine documents, answer the remaining open questions in [08 — Open Questions](08-open-questions.md) (every one has a proposed default you can accept), including the nine report card design choices of Q-E6 in [09 §6](09-report-card-layout.md#6-design-questions-for-the-project-owner-q-e6), and approve Phase 1. Phase 2 (project setup, database schema and backend foundation) starts only after that.

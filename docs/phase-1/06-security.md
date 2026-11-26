@@ -6,7 +6,7 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 
 | Control | Design |
 |---------|--------|
-| Identifier | **[PROPOSED]** Email **or** mobile phone (E.164), globally unique (Q-S2). Login errors are generic ("Invalid credentials"), so they do not reveal which accounts exist. |
+| Identifier | **Confirmed (C-15):** email address **or** mobile phone number (E.164). Every staff account has at least one; each is globally unique. The login form accepts either in one field. Login errors are generic ("Invalid credentials"), so they do not reveal which accounts exist. |
 | Password hashing | **Argon2id** (memory 64 MiB, iterations 3, parallelism 1, re-tuned on production hardware to ~250 ms). Rehash on login if parameters change. |
 | Password policy | ≥ 10 characters; checked against a list of common or breached passwords. No forced periodic rotation (NIST SP 800-63B). Must change on first login and after an admin reset. |
 | Brute force | Per-account progressive lockout (5 failures → 15 min lock, then exponential); per-IP rate limit on `/auth/*` (Redis-backed); all failures logged. |
@@ -65,7 +65,7 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 - Per-school data export, and a documented deletion procedure on offboarding.
 
 ## 8. Audit logging
-**Audited operations (minimum):** login success/failure, logout, password change/reset, MFA changes, user create/deactivate/role change, school create/suspend, support sessions, settings changes, student create/status change/transfer/delete-attempt, guardian contact create/change/replace, guardian contact list exports, billing status changes, charge generation runs, waivers, discounts, payment create/void/refund, expense approve/void, exam lock/publish/unlock, automatic end-of-year outcomes (system actor), placement decisions for PENDING PLACEMENT late joiners (decision, reason, user, date), graduations, result re-publication (including changes to ABSENT statuses), mark changes after lock, attendance edits after lock, imports committed, bulk exports of personal data, permission-denied events (sampled).
+**Audited operations (minimum):** login success/failure, logout, password change/reset, MFA changes, user create/deactivate/role change, school create/suspend, support sessions, settings changes, student create/status change/transfer/delete-attempt, guardian contact create/change/replace, guardian contact list exports, billing status changes (including the School Admin's KEEP/WAIVE decision on existing unpaid charges with reason, user and date, C-18), charge generation runs, waivers, discounts, payment create/void/refund, expense approve/void, exam lock/publish/unlock, automatic end-of-year outcomes (system actor), placement decisions for PENDING PLACEMENT late joiners (decision, reason, user, date), graduations, result re-publication (including changes to ABSENT statuses), mark changes after lock, attendance edits after lock, imports committed, bulk exports of personal data, permission-denied events (sampled).
 
 **Record contents:** actor, role, school, support session (if any), action, entity, before/after (redacted), reason, IP, user agent, request ID, timestamp.
 

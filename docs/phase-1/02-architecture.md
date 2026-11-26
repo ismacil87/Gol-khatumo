@@ -162,7 +162,7 @@ The brief's "separate frontend, backend, database and shared types" maps to `app
 | Idempotency | `Idempotency-Key` header required on `POST /payments`, `POST /fee-charges/generate` and import commits |
 | Concurrency | Optimistic locking via a `version` field on mutable aggregates (returned as `ETag`, sent back as `If-Match`) |
 | Dates | ISO 8601. Dates without time (`2026-11-23`) for attendance, DOB and due dates. UTC timestamps for events. Display converted to the school's time zone. |
-| Money | Decimal strings with 2 decimal places (`"125.50"`), never floats. Currency comes from school settings. |
+| Money | Decimal strings with 2 decimal places (`"125.50"`), never floats. The currency is USD in v1 (C-16), read from the school record so a later release can add others. |
 | Files | `multipart/form-data` upload → file record ID. Downloads via short-lived signed URLs. |
 | Long tasks | `202 Accepted` + `{ jobId }` → `GET /jobs/{jobId}` for status, progress and result URL |
 | Documentation | OpenAPI 3.1 generated from Zod schemas (`@asteasolutions/zod-to-openapi`), served with Swagger UI in non-production |
@@ -283,7 +283,7 @@ Design points:
 - **Student template:** the columns are specified in FR-XLS-10: four mandatory name parts (C-12) and mandatory parent/guardian full name and phone (C-13), validated like the registration form.
 - **Parsing:** SheetJS reads `.xlsx`, `.xls` and `.csv`. Header row detection matches Somali or English headers case-insensitively. Dates are normalized from Excel serial numbers and text formats. Phone numbers are normalized to E.164 (e.g. `+252…`).
 - **Safety:** max file size 5 MB, max 5,000 rows, magic-byte check, no macros (`.xlsm` rejected), formula cells read as values only. CSV export escapes cells starting with `= + - @ \t \r` to prevent **formula injection**.
-- **Validation stages:** (1) structural (headers present), (2) row schema (types, required, enums), (3) referential (section exists in the current year), (4) business rules (capacity, FREE students cannot have opening balances), (5) duplicates within the file and against the database.
+- **Validation stages:** (1) structural (headers present), (2) row schema (types, required, enums), (3) referential (section exists in the current year), (4) business rules (capacity, FREE students cannot have tuition opening balances, C-17), (5) duplicates within the file and against the database.
 - **Commit:** all-or-nothing by default. For very large files, batches of 500 inside a job, with a compensating rollback of that import's records if a batch fails.
 - **Exports:** run synchronously for ≤ 5,000 rows and in the background above that. They apply the same filters and permission checks as the list endpoint. Columns containing financial data are excluded for roles without finance permission.
 

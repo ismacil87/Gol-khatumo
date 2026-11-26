@@ -37,7 +37,7 @@ A phase is complete only when **all** of the following hold:
 
 ### Phase 3 — Authentication, user management & admin dashboard
 **Deliverables**
-- Auth: login, refresh rotation, logout, logout-all, change password, forced change, lockout, rate limits; TOTP MFA for Super Admin.
+- Auth: login with email **or** phone number (C-15), refresh rotation, logout, logout-all, change password, forced change, lockout, rate limits; TOTP MFA for Super Admin.
 - Platform: Super Admin UI for schools (create with first School Admin, edit, suspend), support sessions.
 - School: users and roles management, audit log viewer, school profile and settings, language switcher.
 - Web shell: responsive layout (sidebar, top bar, mobile drawer), design-system primitives (Button, Input, Select, DatePicker, DataTable, Modal, Toast, Badge, EmptyState, Skeleton), i18n setup, permission-aware routing and menus.
@@ -47,6 +47,7 @@ A phase is complete only when **all** of the following hold:
 **Acceptance criteria**
 - A Super Admin can onboard "Gol Khatumo School" and its School Admin, who can log in, is forced to change the password, and can create Principal, Accountant and Teacher users.
 - Each role sees only permitted menu items. Direct API calls to forbidden endpoints return 403 (or 404 out of scope).
+- A user can log in with their email address and, separately, with their phone number in any accepted format (normalised to E.164). Creating a user with neither, or with an email/phone already used by another account, is rejected (C-15).
 - Six failed logins lock the account. Refresh-token reuse revokes the session family. All of these are covered by tests.
 - Audit log shows logins, user creation and role changes, with filters.
 - Switching Somali/English changes all visible text immediately and persists across sessions.
@@ -80,11 +81,11 @@ A phase is complete only when **all** of the following hold:
 
 **Acceptance criteria**
 - Every exam belongs to Mid Term or Final Term, and paper dates outside that term are rejected. A second examination in the same term, a second paper for the same grade level and subject, or maximum marks other than 100 are rejected.
-- **Grading scale boundaries:** automated tests cover every boundary of the official scale: 100 and 91 → A+, 90 and 85 → A-, 84 and 80 → B+, 79 and 75 → B, 74 and 70 → C+, 69 and 65 → C, 64 and 60 → D+, 59 and 50 → D, 49 and 0 → F. Overall percentages use exact values, with no rounding: 90.6% → A-, 84.99% → B+.
+- **Grading scale boundaries:** automated tests cover every boundary of the official scale: 100 and 91 → A+, 90 and 85 → A-, 84 and 80 → B+, 79 and 75 → B, 74 and 70 → C+, 69 and 65 → C, 64 and 60 → D+, 59 and 50 → D, 49 and 0 → F. Overall percentages use exact values, with no rounding (C-04): 90.6% → A-, 84.99% → B+.
 - **PASS/FAIL from overall marks across all subjects (C-05)**, with hand-calculated fixtures:
   - Marks 40, 60, 55 → 155/300 = 51.666…% (shown 51.66%) → **PASS**, even though one subject is F (the subject still shows grade F).
   - Marks 45, 50, 54 → 149/300 = 49.666…% (shown 49.66%) → **FAIL**.
-  - 7 subjects, 350/700 = 50.00% → **PASS**; 349/700 = 49.857…% → **FAIL**, displayed as 49.85% (truncated), never as 50%.
+  - 7 subjects, 350/700 = 50.00% → **PASS**; 349/700 = 49.857…% → **FAIL**, displayed as 49.85% (truncated), never as 50% (C-04).
   - EXEMPT subjects are excluded from both totals. ABSENT counts as 0/100 and is included: marks 67.5, 55 and one ABSENT give 122.5/300 = 40.83% → FAIL.
   - **Mid Term PASS/FAIL (C-14):** Mid Term 155/300 → PASS and 149/300 → FAIL, calculated exactly like Final Term. A Mid Term FAIL **never** creates REPEAT GRADE, and a Mid Term PASS never creates PROMOTED or GRADUATED; outcomes are produced only when Final Term is published.
   - Combinations: Mid Term FAIL + Final Term PASS → PROMOTED; Mid Term PASS + Final Term FAIL → REPEAT GRADE. No combined or annual figure is calculated.
@@ -114,15 +115,17 @@ A phase is complete only when **all** of the following hold:
 - Teachers can enter marks only for assigned subject × section, and only during MARKS_ENTRY.
 - Publishing produces snapshots. Editing marks afterwards requires unlock (audited) and re-publish. Published ranks never change silently.
 - **Ranking ties (C-11):** with exact overall percentages 91.50, 88.00, 88.00 and 80.25, the ranks are **1, 2, 2, 4**. Two students who both display 78.83% (78.833…% and 78.834%) are **not** tied; the higher exact value ranks first. The same results appear in section and grade-level ranks, Mid Term and Final Term, and every term ranking report. Students with incomplete marks or PENDING PLACEMENT are not ranked. All fixtures are hand-calculated.
-- Mid Term and Final Term report card PDFs for a class render in Somali and in English with the correct term label; for each subject the mark, percentage and letter grade; term total, percentage, overall grade, rank, result status (Mid Term PASS/FAIL labelled as a progress assessment; Final Term PASS/FAIL with the end-of-year outcome), grading scale legend and term attendance. The Final Term report card shows the Mid Term results in a separate column, with no combined or annual figure.
+- Mid Term and Final Term report card PDFs for a class render in Somali and in English with the correct term label and the student's four-part name (C-12); for each subject the mark, percentage and letter grade; term total, percentage, overall grade, rank, result status (Mid Term PASS/FAIL labelled as a progress assessment; Final Term PASS/FAIL with the end-of-year outcome), grading scale legend and term attendance. The Final Term report card shows the Mid Term results in a separate column, with no combined or annual figure.
 
 ### Phase 7 — Finance & fee management
 **Deliverables:** fee categories and structures, charge generation (preview, idempotent), ad-hoc charges, discounts, waivers with approval, billing profiles (FREE / FEE_PAYING) with approval and history, payments with allocation and credit, receipt numbering and **receipt PDF**, payment void/refund (maker-checker), outstanding balances and aging, class financial report, free student register, finance accounts, income/expenses with approval, daily cash report, fee statement PDF.
 
 **Acceptance criteria**
-- TERMLY fee items produce exactly one charge for Mid Term and one for Final Term per fee-paying student. Outstanding reports can be filtered by term.
-- Generating charges twice for the same period creates no duplicates. Free students receive no charges, and manual attempts to charge them (non-allowed categories) are rejected.
-- For a seeded scenario (paid, partial, unpaid, free, credit students), balances and statuses match hand-calculated expected values exactly. Class report totals reconcile: expected = collected + outstanding + waived/discounted.
+- TERMLY fee items produce exactly one charge for Mid Term and one for Final Term per student; ONE_TIME items exactly one charge per student per year; MONTHLY items one per month. A fee item with frequency ANNUAL is rejected (C-19). Outstanding reports can be filtered by term.
+- All amounts are in USD; no other currency can be entered (C-16).
+- Generating charges twice for the same period creates no duplicates. FREE students receive **no tuition charges**, and manual or imported tuition charges for them are rejected (`FEE_STUDENT_IS_FREE`); their non-tuition charges (e.g. books, uniform, transport) are generated and collected normally (C-17).
+- Changing a student to FREE mid-year: only the School Admin can record the KEEP/WAIVE decision for existing unpaid charges; KEEP leaves them payable, WAIVE writes waiver adjustments that bring them to zero; the audit log shows the decision, reason, user and date; no tuition charge is generated after the effective date, while non-tuition charges continue (C-18).
+- For a seeded scenario (paid, partial, unpaid, free without charges, free with non-tuition charges, credit students), balances and statuses match hand-calculated expected values exactly. Class report totals reconcile: expected = collected + outstanding + waived/discounted.
 - 100 concurrent payment requests produce 100 unique, gapless receipt numbers. An idempotent retry creates no duplicate payment.
 - A voided payment keeps its receipt number, shows VOID, reverses its allocations and income transaction, and is audit-logged with the approver.
 - Teachers cannot access any finance endpoint or financial fields (tests).
@@ -133,7 +136,7 @@ A phase is complete only when **all** of the following hold:
 **Acceptance criteria**
 - Issuing an ON_LOAN copy is rejected. Returning a copy updates its status. An overdue list and notification appear after the due date.
 - Stock on hand equals the sum of movements. An OUT movement exceeding stock is rejected. A low-stock alert fires once per crossing.
-- A student assigned to a route receives transport charges via the fee engine (unless FREE and the category is not allowed). Route capacity is enforced.
+- A student assigned to a route receives transport charges via the fee engine, including FREE students, because transport is not tuition (C-17). Route capacity is enforced.
 - Announcements reach only the targeted roles or users.
 
 ### Phase 9 — Excel integration, PDF reports & analytics

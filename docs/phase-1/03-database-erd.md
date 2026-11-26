@@ -58,7 +58,7 @@ erDiagram
     string phone
     string email
     string registration_no
-    string currency "ISO 4217, e.g. USD"
+    string currency "ISO 4217; fixed to USD in v1 (C-16)"
     string timezone "Africa/Mogadishu"
     string default_locale "so|en"
     string status "ACTIVE|SUSPENDED|ARCHIVED"
@@ -75,8 +75,8 @@ erDiagram
   USER {
     string id PK
     string school_id FK "NULL = platform user"
-    string email UK "nullable"
-    string phone UK "nullable, E.164"
+    string email UK "nullable; login identifier (C-15)"
+    string phone UK "nullable, E.164; login identifier (C-15)"
     string password_hash "argon2id"
     string full_name
     string locale
@@ -130,6 +130,8 @@ erDiagram
     datetime expires_at
   }
 ```
+
+**Login identifier (C-15):** staff log in with an email address or a phone number. `CHECK (email IS NOT NULL OR phone IS NOT NULL)` on `user`; `email` and `phone` each have a global unique index (a NULL does not collide). Phone numbers are stored normalised to E.164, and emails in lower case, so one login cannot be registered twice in different spellings.
 
 ## 4. Academic structure
 
@@ -559,17 +561,17 @@ erDiagram
 Rules:
 - `UNIQUE (school_id, exam_paper_id, enrollment_id)` on marks.
 - **One examination per term (v1):** `UNIQUE (school_id, term_id)` on `exam`; `UNIQUE (school_id, exam_id, grade_level_id, subject_id)` on `exam_paper`; `max_marks = 100` (check constraint); `0 ≤ score ≤ 100` (check constraint).
-- **Official grading scale (seeded, C-03):** `grading_scale` "GKS Official Grading Scale" v1, `pass_threshold = 50`, `is_editable = false`, with `grade_band` rows (min → grade): 91 A+, 85 A-, 80 B+, 75 B, 70 C+, 65 C, 60 D+, 50 D, 0 F. The grade is the band with the highest `min_percent` ≤ the percentage (see Requirements §1.8 GS-3 and Q-E8 for non-whole percentages).
+- **Official grading scale (seeded, C-03):** `grading_scale` "GKS Official Grading Scale" v1, `pass_threshold = 50`, `is_editable = false`, with `grade_band` rows (min → grade): 91 A+, 85 A-, 80 B+, 75 B, 70 C+, 65 C, 60 D+, 50 D, 0 F. The grade is the band with the highest `min_percent` ≤ the percentage (see Requirements §1.8 GS-3, C-04 and C-08 for non-whole percentages).
 - **Overall percentage (C-05):** `total_score` = sum of marks obtained across all subjects examined in the term (decimals kept exactly); `total_max` = sum of possible marks across those subjects (100 each). **ABSENT counts as 0 out of 100 and is included in both totals** (C-07). Only EXEMPT subjects are excluded.
-- **Result status (C-05, C-14):** for **both** Mid Term and Final Term snapshots, `result_status = PASS` when `total_score × 100 ≥ pass_threshold × total_max`, else `FAIL`. This compares the exact totals, so there is no rounding. Individual subject grades never decide PASS/FAIL. The Mid Term status is a progress assessment only: it is never read by the outcome logic. `end_of_year_outcome` exists only on Final Term snapshots and is derived only from the Final Term `result_status`.
-- **Grade from exact percentage:** the overall grade uses the same exact comparison against each band's `min_percent` (`total_score × 100 ≥ min_percent × total_max`). `percentage` is stored for display and reporting only and is never used for decisions.
+- **Result status (C-05, C-14):** for **both** Mid Term and Final Term snapshots, `result_status = PASS` when `total_score × 100 ≥ pass_threshold × total_max`, else `FAIL`. This compares the exact totals, so there is no rounding (C-04). Individual subject grades never decide PASS/FAIL. The Mid Term status is a progress assessment only: it is never read by the outcome logic. `end_of_year_outcome` exists only on Final Term snapshots and is derived only from the Final Term `result_status`.
+- **Grade from exact percentage (C-04):** the overall grade uses the same exact comparison against each band's `min_percent` (`total_score × 100 ≥ min_percent × total_max`). `percentage` is stored for display and reporting only (truncated to 2 decimals, never rounded up) and is never used for decisions.
 - **End-of-year outcome (C-06), automatic:** when the Final Term exam is published, `end_of_year_outcome` is set on each Final Term snapshot: PASS → `PROMOTED`, or `GRADUATED` **only** when the student's grade level has `is_final_grade = true` (C-09); FAIL → `REPEAT_GRADE`. It is copied to `enrollment.outcome` (`outcome_source = AUTOMATIC`, `outcome_snapshot_id`) by the system actor, with an audit entry. No approval step exists, and no API lets a user set or override an automatic outcome. A GRADUATED student gets no next-year enrolment, and their `student.status` becomes `GRADUATED` at rollover.
 - **Final grade configuration (C-09):** `grade_level.is_final_grade` is set explicitly by the School Admin. Constraints: at most one `is_final_grade = true` per school (unique partial index via a generated column); `is_final_grade = true` ⇒ `next_grade_level_id IS NULL`. Publishing a Final Term exam is **rejected** (`GRADE_PROGRESSION_NOT_CONFIGURED`, listing the grade levels) if any grade level in it has `is_final_grade = false` and `next_grade_level_id IS NULL`, and also if the school has no final grade configured. A missing next grade is therefore a configuration error, never a graduation.
 - **Late joiners (C-10):** at Final Term publication, every enrolment of the year whose student had **no active enrolment in the school on the first Final Term paper date** receives `outcome = PENDING_PLACEMENT` and has no Final Term snapshot. Such students are excluded from the Final Term mark-entry grid, so they are never auto-marked ABSENT. Section transfers do not count as late joining. Only the School Admin (`academic.placement.decide`) resolves it: `placement_grade_level_id`, `placement_reason` (mandatory), `placement_decided_by_id` and `placement_decided_at` are written with `outcome_source = ADMIN_PLACEMENT`, together with an audit entry recording the decision, reason, user and date. Rollover creates their next-year enrolment from that decision (or graduates them, if the decision is to graduate from a final grade).
 - **Ranking (C-11):** `rank_in_section` and `rank_in_grade` use standard competition ranking over the exact overall percentage. Two students tie only if `total_score_A × total_max_B = total_score_B × total_max_A`; otherwise the higher exact value ranks first. The rank is 1 + the number of students with a strictly higher value, which gives 1, 2, 2, 4. The same function is used for Mid Term and Final Term and by every ranking report.
 - **Corrections:** an outcome changes only if Final Term marks are corrected through the audited unlock → re-publish flow before rollover commits. After rollover, a correction also moves the next-year enrolment (same grade level ↔ next grade level), audit-logged.
 - **Absence rule (C-07, fixed):** check constraints on `mark`: `entry_status = 'ABSENT'` ⇒ `score = 0`; `entry_status = 'EXEMPT'` ⇒ `score IS NULL`; `entry_status = 'SCORED'` ⇒ `0 ≤ score ≤ 100`. The service sets `score = 0` automatically when ABSENT is recorded. There is no absence-policy table, setting or permission.
-- **Decimal marks (C-08):** `score DECIMAL(5,2)` holds 0.00–100.00 with up to two decimal places (67.25, 78.50, 90.25). Input with more decimal places is rejected by validation before it reaches the database. Totals are summed exactly, and grades and PASS/FAIL use the exact comparisons above with no rounding: a subject mark of 90.25 or 90.50 is A-, because the A+ lower bound is 91.
+- **Decimal marks (C-08):** `score DECIMAL(5,2)` holds 0.00–100.00 with up to two decimal places (67.25, 78.50, 90.25). Input with more decimal places is rejected by validation before it reaches the database. Totals are summed exactly, and grades and PASS/FAIL use the exact comparisons above with no rounding (C-04): a subject mark of 90.25 or 90.50 is A-, because the A+ lower bound is 91.
 - **Re-publication:** changing a mark or an ABSENT status on a published exam goes only through the audited unlock → re-publish flow. Republishing writes new snapshots with `result_version + 1` and marks the previous ones `is_current = false`; they are never deleted. No other code path writes snapshots of a published exam.
 - Snapshots store `grading_scale_id` and `grading_scale_version`, so a future scale change never alters published grades.
 - Every exam belongs to exactly one term (Mid Term or Final Term), and its paper dates must fall inside that term.
@@ -610,7 +612,7 @@ erDiagram
     string code "TUITION|REGISTRATION|EXAM|TRANSPORT|..."
     string name_so
     string name_en
-    boolean applies_to_free_students "default false"
+    boolean is_tuition "true only for tuition categories (C-17)"
   }
   FEE_STRUCTURE {
     string id PK
@@ -625,7 +627,7 @@ erDiagram
     string fee_structure_id FK
     string fee_category_id FK
     decimal amount
-    string frequency "ONE_TIME|MONTHLY|TERMLY|ANNUAL"
+    string frequency "ONE_TIME|MONTHLY|TERMLY (no ANNUAL, C-19)"
     int due_day "day of month (MONTHLY) or days after term start (TERMLY)"
   }
   BILLING_PROFILE {
@@ -643,10 +645,12 @@ erDiagram
     string from_type
     string to_type
     date effective_from
-    string existing_charges_action "KEEP|WAIVE"
-    string reason
+    string existing_charges_action "KEEP|WAIVE; set by the School Admin when changing to FREE (C-18)"
+    string reason "mandatory"
     string changed_by_id FK
     string approved_by_id FK
+    string decided_by_id FK "School Admin who decided KEEP/WAIVE (C-18)"
+    datetime decided_at
   }
   STUDENT_DISCOUNT {
     string id PK
@@ -660,7 +664,7 @@ erDiagram
   CHARGE_RUN {
     string id PK
     string academic_year_id FK
-    string period_key "2026-11 | 2026-27:MID_TERM | 2026-27:FINAL_TERM | 2026-27:YEAR"
+    string period_key "2026-11 (MONTHLY) | 2026-27:MID_TERM | 2026-27:FINAL_TERM (TERMLY) | 2026-27:ONE_TIME"
     string term_id FK "for TERMLY runs"
     string idempotency_key UK
     int charges_created
@@ -744,9 +748,10 @@ erDiagram
 
 ### 8.1 Financial invariants (enforced in services, verified by tests)
 1. **Balance derivation:** `balance(enrollment) = Σ charge.amount − Σ charge.discount_amount − Σ adjustment.amount − Σ allocation.amount` over non-void charges and valid payments. There is **no stored "balance" column** that can drift. A per-enrolment summary may be cached for reports and is rebuilt from the ledger.
-2. **Free students:** while `billing_profile.billing_type = FREE`, charge generation skips the enrolment, and creating any charge whose category has `applies_to_free_students = false` is rejected with `FEE_STUDENT_IS_FREE`. Free students therefore always have outstanding = 0 for those categories.
-3. **Fee status** per enrolment and period: `FREE` if billing type is FREE; otherwise `PAID` / `PARTIAL` / `UNPAID` / `CREDIT`, derived from the balance (FR-BAL-02).
-4. **Idempotent generation:** `UNIQUE (school_id, enrollment_id, fee_structure_item_id, period_key)` on generated charges, so a run repeated for the same period creates nothing new. TERMLY items produce exactly two charges per fee-paying enrolment per year: one for Mid Term and one for Final Term. MONTHLY charges carry the `term_id` of the term their month falls in, so balances can be reported per term.
+2. **Free students (C-17):** while `billing_profile.billing_type = FREE`, charge generation skips items whose category has `is_tuition = true`, and creating any tuition charge for the enrolment (generated, ad-hoc or opening balance) is rejected with `FEE_STUDENT_IS_FREE`. Free students therefore always owe 0 tuition. Non-tuition categories (books, uniforms, transport, registration, exam, …) are charged to them normally.
+3. **Fee status** per enrolment and period: `FREE` if billing type is FREE and the enrolment has no charges in the period; otherwise `PAID` / `PARTIAL` / `UNPAID` / `CREDIT`, derived from the balance, with the FREE badge shown alongside for FREE students (FR-BAL-02, **[PROPOSED]** Q-F12).
+3a. **Becoming FREE mid-year (C-18):** the change to FREE records the School Admin's `existing_charges_action`: `KEEP` leaves the existing unpaid charges payable; `WAIVE` creates a `charge_adjustment` (kind `WAIVER`) for the unpaid amount of each of them, referencing the billing-status change. The decision, reason, `decided_by_id` and `decided_at` are stored and audit-logged. From `effective_from` onward no tuition charge is generated; other charges continue.
+4. **Idempotent generation:** `UNIQUE (school_id, enrollment_id, fee_structure_item_id, period_key)` on generated charges, so a run repeated for the same period creates nothing new. TERMLY items produce exactly two charges per billable enrolment per year: one for Mid Term and one for Final Term. ONE_TIME items produce exactly one charge per billable enrolment per year (`period_key` `{year}:ONE_TIME`). There is no ANNUAL frequency (C-19). MONTHLY charges carry the `term_id` of the term their month falls in, so balances can be reported per term.
 5. **Allocation integrity:** `Σ allocations(payment) = payment.amount`; `Σ allocations(charge) ≤ charge net amount`. Both are checked in the same transaction with row locks (`SELECT … FOR UPDATE`).
 6. **Immutability:** payments, allocations and charges are never updated in amount or deleted. Corrections use void + re-issue, or adjustments, all audit-logged.
 7. **Receipt numbers** come from `number_sequence` with a row lock, inside the payment transaction: gapless and unique per school per year. A voided payment keeps its number.

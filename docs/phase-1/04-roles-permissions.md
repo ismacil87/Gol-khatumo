@@ -50,7 +50,7 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
 | Marks/results | `marks.read`, `marks.enter`, `marks.import`, `results.read`, `rankings.read`, `results.annual_policy.manage` (reserved for the future annual result policy, School Admin only, inactive in v1) |
 | Report cards | `report_cards.generate`, `report_cards.remarks.manage` |
 | Fees | `fees.structures.read`, `fees.structures.manage`, `fees.charges.generate`, `fees.charges.adhoc`, `fees.charges.waive.request`, `fees.charges.waive.approve`, `fees.discounts.manage` |
-| Free students | `billing.status.read`, `billing.status.request`, `billing.status.approve` |
+| Free students | `billing.status.read`, `billing.status.request`, `billing.status.approve` (School Admin; includes the KEEP/WAIVE decision on existing unpaid charges, C-18) |
 | Payments | `payments.read`, `payments.create`, `payments.void.request`, `payments.void.approve`, `payments.refund` |
 | Balances | `balances.read` |
 | Income/expenses | `finance.read`, `finance.record`, `finance.approve`, `finance.accounts.manage` |
@@ -131,7 +131,7 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 
 | Operation | Requester | Approver | Notes |
 |-----------|-----------|----------|-------|
-| Grant/revoke FREE status | Accountant, Principal | School Admin | Reason category + notes required. Choice of KEEP/WAIVE for existing charges. |
+| Grant/revoke FREE status | Accountant, Principal | School Admin | Reason category + notes required. FREE exempts tuition only (C-17). When a student becomes FREE mid-year, **only the School Admin** decides whether existing unpaid charges remain payable (KEEP) or are waived (WAIVE); decision, reason, user and date are audit-logged; future tuition charges stop (C-18). |
 | Waive a charge | Accountant | School Admin | Reason required |
 | Void a payment | Accountant | School Admin | Receipt stays, marked VOID; income transaction voided |
 | Refund credit | Accountant | School Admin | Creates an expense/refund transaction |
