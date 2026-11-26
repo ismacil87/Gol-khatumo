@@ -25,11 +25,13 @@ GKSMS is a cloud-based, multi-school management platform. It digitises a school'
 
 - Parent and student portals or logins
 - Native mobile apps. The responsive web app comes first; a PWA can follow.
-- Online payment gateway integration (EVC Plus, Zaad, eDahab, bank APIs). Payments are recorded manually in v1. See Q-F5.
-- Payroll processing. Salaries may be recorded as expenses. See Q-G4.
-- SMS and email delivery to parents. In-app staff notifications only. See Q-N1.
+- Online payment gateway integration (EVC Plus, Zaad, eDahab, bank APIs). Mobile money and bank payments are recorded manually with their transaction reference in v1 (C-34).
+- Payroll processing. Salaries may be recorded as expenses (C-43).
+- SMS and email delivery to parents. In-app staff notifications only; the channel abstraction is kept ready (C-46).
 - A learning management system (LMS), e-learning, homework submission
-- Platform subscription billing of schools. See Q-P2.
+- Platform subscription billing of schools (C-26).
+- Late-payment penalties (C-38).
+- Offline mode; safe retries are built in instead (C-41).
 
 ### 1.4 Stakeholders and users
 
@@ -48,7 +50,7 @@ GKSMS is a cloud-based, multi-school management platform. It digitises a school'
 - **A2.** **USD is the only currency** for the initial release. There are no multi-currency payments or exchange rates (confirmed, C-16).
 - **A3.** The default time zone is Africa/Mogadishu (EAT, UTC+3), configurable per school.
 - **A4.** School working days are configurable per school (for example Saturday–Wednesday or Saturday–Thursday).
-- **A5.** Internet access at schools may be slow or intermittent. The UI must be lightweight and must tolerate retries. Full offline mode is not in v1 (Q-G2).
+- **A5.** Internet access at schools may be slow or intermittent. The UI must be lightweight and must tolerate retries. Offline mode is not in v1; safe retry mechanisms (idempotency keys, retry-safe mutations) prevent duplicate transactions (C-41).
 - **A6.** Somali uses the Latin script, so no right-to-left layout or complex text shaping is needed. Fonts must still cover the full Latin character set, including apostrophes in names such as *Ba'ad*.
 
 ### 1.6 Academic structure (confirmed by the project owner)
@@ -75,7 +77,7 @@ flowchart LR
 
 Rules:
 
-- **AS-1.** The initial configuration of Gol Khatumo School, and of every academic year created for it, contains exactly two terms in this order: **Mid Term**, **Final Term**. The labels are used exactly as written on screens, reports and PDFs.
+- **AS-1.** The initial configuration of Gol Khatumo School, and of every academic year created for it, contains exactly two terms in this order: **Mid Term**, **Final Term**. The labels are used exactly as written on screens, reports and PDFs, in both languages (C-32).
 - **AS-2.** Terms are stored as data per academic year, not hard-coded. Each term has a sequence, label, start date and end date. The structure therefore stays configurable for future academic years: when a new year is created, it copies the previous year's term structure (Mid Term, Final Term) by default, and the School Admin sets the dates.
 - **AS-3.** Terms within a year do not overlap, fall inside the academic year's dates, and are ordered Mid Term → Final Term.
 - **AS-4.** The system never introduces a third term or semesters. Report types, fee periods and screens are built for the two-term structure.
@@ -102,6 +104,7 @@ Rules:
 | **GP-14** | **Graduation (C-09):** a student is in the school's highest grade **only when that grade level is explicitly configured as the school's final grade** (`is_final_grade`, set by the School Admin; exactly one per school). A missing "next grade level" is **never** treated as graduation. A student in the configured final grade who PASSES the Final Term receives **GRADUATED**, their student status becomes GRADUATED at rollover, and no next-year enrolment is created. A student in the final grade who FAILS repeats it (REPEAT GRADE). **Configuration check:** Final Term results cannot be published while any grade level in the examination has neither a next grade level nor the final-grade flag. The School Admin is shown which grade levels to configure, so a PASS student is never left without a valid outcome. |
 | **GP-15** | **Late joiners (C-10):** a student who had **no active enrolment in the school on the first paper date of the Final Term examination** was not enrolled when the examination took place. They are not included in that examination: no marks and no ABSENT are recorded for them. They receive the outcome **PENDING PLACEMENT**. The **School Admin** decides their placement for the next academic year (next grade, same grade, or a final-grade student graduating), with a mandatory reason. The decision, reason, responsible user and date are stored and audit-logged. This rule **never** applies to students who were enrolled but absent: those receive ABSENT = 0/100 (C-07) and a normal automatic outcome. |
 | **GP-16** | **Ranking ties (C-11):** students are ranked by their **overall term percentage** (C-05). Students with **identical exact** overall percentages share the same rank, using **standard competition ranking**: 1, 2, 2, 4. "Identical" is judged on the exact value (the totals are compared exactly), not on the 2-decimal display, so two students who both display 78.83% can still have different ranks (C-04). Applied in the same way to Mid Term and Final Term, in section and grade-level rankings, and in every term ranking report. |
+| **GP-17** | **Mid Term late joiners (C-23):** a student who had **no active enrolment on the first paper date of the Mid Term examination** takes no part in it: **no marks, no ABSENT, no artificial zero and no FAIL** are recorded, no Mid Term result or rank is produced, and no Mid Term report card is issued. Their Final Term report card shows **—** for each Mid Term subject mark and **"No Mid Term Result"** in the Mid Term reference column. Final Term results are calculated normally, and the **Final Term alone** decides promotion, repetition or graduation (GP-8, GP-14). |
 
 **Future flexibility (architecture only, not active in v1):** the data model reserves an **annual result policy** per academic year. Its mode is `NONE` (the current policy) and is fixed to `NONE` in v1. A later release may allow an authorised School Admin to configure how Mid Term and Final Term contribute to an annual result, but only:
 
@@ -172,13 +175,13 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-SCH-05 | Each academic year contains two terms, **Mid Term** and **Final Term**, with start and end dates, created automatically with the year (AS-1 to AS-3). The School Admin edits dates; the term structure is copied to each new year. | M |
 | FR-SCH-06 | Configure working days, school holidays and closure dates. Attendance is not expected on these days. | S |
 | FR-SCH-07 | Year-end rollover, after Final Term results are published. Outcomes are **already decided automatically** (GP-8): PROMOTED → enrolled in the next grade level; REPEAT GRADE → enrolled in the same grade level for the next academic year; GRADUATED (passing a final grade, GP-14) → no next-year enrolment, student status GRADUATED. Students with **PENDING PLACEMENT** (late joiners, GP-15) are listed separately and are placed only by the School Admin, with a reason (audited). The School Admin/Principal runs the rollover to place students into next-year sections and record withdrawals/transfers, but cannot change any PASS/FAIL or promotion/repetition outcome. Preview before commit. | M |
-| FR-SCH-08 | Configure numbering formats for admission numbers, employee numbers and receipt numbers | S |
+| FR-SCH-08 | Numbering formats for admission, employee and receipt numbers. Admission numbers use **`GK-{YYYY}-{0000}`** (C-30); receipts are sequential without gaps per school per year (C-39). | S |
 
 ### 2.3 Student Management (STU)
 
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-STU-01 | Register a student: admission number (auto or manual, unique per school); **student name in exactly four mandatory parts: First Name, Father's Name, Grandfather's Name, Fourth Name** (C-12); gender, date of birth, place of birth, nationality, address, photo, admission date, previous school, medical notes; and the **mandatory parent/guardian full name and phone number** (FR-PAR-01, C-13). A student cannot be saved without all four name parts and the guardian contact. | M |
+| FR-STU-01 | Register a student: admission number (auto-generated as `GK-{YYYY}-{0000}`, editable for historical students, unique per school; C-30); **student name in exactly four mandatory parts: First Name, Father's Name, Grandfather's Name, Fourth Name** (C-12); gender, date of birth, place of birth, nationality, address, photo, admission date, previous school, medical notes; and the **mandatory parent/guardian full name and phone number** (FR-PAR-01, C-13). A student cannot be saved without all four name parts and the guardian contact. | M |
 | FR-STU-02 | Enrol the student in a section for an academic year. One active enrolment per student per year. | M |
 | FR-STU-03 | Student status lifecycle: ACTIVE, SUSPENDED, TRANSFERRED, WITHDRAWN, GRADUATED, with an effective date and reason. Each enrolment also records its end-of-year outcome: PROMOTED, REPEAT_GRADE or GRADUATED (automatic), or PENDING_PLACEMENT followed by the School Admin's placement decision (late joiners). It is shown on the student profile and in the enrolment history. | M |
 | FR-STU-04 | Transfer a student between sections within the same year. Attendance and marks history is kept. | M |
@@ -193,7 +196,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-PAR-01 | **Mandatory for every student (C-13):** a primary parent/guardian with **Full Name** and **Phone Number** is captured in the student registration record and cannot be left empty or removed. Without them the student cannot be registered, imported or saved. Validation: full name 2–150 characters, letters, spaces, apostrophes and hyphens; phone number required and valid, accepted in local or international format and stored normalised in international form (E.164). The default country code is **[PROPOSED]** +252 (school setting). Optional extra fields: relationship, secondary phone, occupation, address, national ID, email. | M |
+| FR-PAR-01 | **Mandatory for every student (C-13):** a primary parent/guardian with **Full Name** and **Phone Number** is captured in the student registration record and cannot be left empty or removed. Without them the student cannot be registered, imported or saved. Validation: full name 2–150 characters, letters, spaces, apostrophes and hyphens; phone number required and valid, accepted in local or international format and stored normalised in international form (E.164). The default country code is **[PROPOSED] (Q-M1)** +252 (school setting). Optional extra fields: relationship, secondary phone, occupation, address, national ID, email. | M |
 | FR-PAR-06 | Authorised school staff can see the guardian name and phone on the student profile, class lists and the guardian contact report, to contact parents or guardians when necessary (access in 04 — Roles & Permissions). Changes to guardian contact details are audit-logged. | M |
 | FR-PAR-02 | One guardian can be linked to several students (siblings). One student can have additional guardians besides the mandatory primary guardian. The primary guardian can be **replaced** but never removed without a replacement. | M |
 | FR-PAR-03 | Mark emergency contacts and who may collect the student | S |
@@ -209,7 +212,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-STF-03 | Record a teacher's subject specialisations | S |
 | FR-STF-04 | Staff documents (CV, certificates, contract) | S |
 | FR-STF-05 | Excel import and export of teachers and staff | M |
-| FR-STF-06 | Record salary information (amount, payment method) for expense recording only, visible only to authorised finance roles | C (Q-G4) |
+| FR-STF-06 | Record salary information (amount, payment method) for expense recording only, visible only to authorised finance roles. Payroll is out of scope (C-43). | C |
 
 ### 2.6 Class & Section Management (CLS)
 
@@ -242,11 +245,11 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-SAT-01 | Take daily attendance per section. Statuses: PRESENT, ABSENT, LATE, EXCUSED. Optional remark per student. | M |
+| FR-SAT-01 | Take **daily** attendance per section (C-31). Statuses: PRESENT, ABSENT, LATE, EXCUSED. Optional remark per student. | M |
 | FR-SAT-02 | "Mark all present" and then change only the exceptions, for speed on mobile | M |
-| FR-SAT-03 | Teachers can take attendance only for sections they are class teacher of or teach. Edits after a configurable window (e.g. same day) need Principal permission. | M |
+| FR-SAT-03 | Teachers can take attendance only for sections they are class teacher of or teach. They can edit it **until midnight (school time zone) on the same day**; later edits need the Principal (`attendance.edit_locked`) and are audited (C-31). | M |
 | FR-SAT-04 | Attendance reports: daily absentees, monthly register per section, student attendance percentage, chronic absentees | M |
-| FR-SAT-05 | Per-period (per-lesson) attendance | C (Q-A1) |
+| FR-SAT-05 | Per-period (per-lesson) attendance | C (not v1, C-31) |
 | FR-SAT-06 | Attendance is expected only on working days inside a term (Mid Term or Final Term). Attendance summaries (days present, absent, late, attendance %) are calculated per term and for the year, and feed the report cards. | M |
 
 ### 2.10 Teacher Attendance (TAT)
@@ -254,7 +257,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | ID | Requirement | P |
 |----|-------------|---|
 | FR-TAT-01 | Record daily staff attendance: PRESENT, ABSENT, LATE, ON_LEAVE, HALF_DAY, with check-in and check-out times | M |
-| FR-TAT-02 | **[PROPOSED]** Recorded by School Admin or Principal (or a delegated staff member). Self check-in is a later option (Q-A2). | M |
+| FR-TAT-02 | Staff attendance is recorded by the **School Admin or Principal**. No self check-in in v1 (C-31). | M |
 | FR-TAT-03 | Leave records: type, date range, approval | S |
 | FR-TAT-04 | Monthly staff attendance report and export | M |
 
@@ -287,7 +290,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | ID | Requirement | P |
 |----|-------------|---|
 | FR-RNK-01 | Rank students within a section and within the whole grade level, per exam, for Mid Term and for Final Term, each ranked separately. No annual ranking in v1 (GP-7). | M |
-| FR-RNK-02 | Ranking by overall term percentage (C-05). Students with identical exact percentages share a rank using **standard competition ranking** (1, 2, 2, 4), consistently in all term ranking reports (GP-16, C-11). Results, and therefore ranks, are produced only when every student's marks are complete; late joiners without a Final Term result (GP-15) are not ranked for that term. | M |
+| FR-RNK-02 | Ranking by overall term percentage (C-05). Students with identical exact percentages share a rank using **standard competition ranking** (1, 2, 2, 4), consistently in all term ranking reports (GP-16, C-11). Results, and therefore ranks, are produced only when every student's marks are complete; late joiners without a result for a term (GP-15, GP-17) are not ranked for that term. | M |
 | FR-RNK-03 | Top-N lists per grade level and per subject | S |
 | FR-RNK-04 | Rankings are snapshotted when an exam is published so later edits cannot silently change published ranks | M |
 
@@ -295,12 +298,12 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-RPC-01 | Generate report cards per student, section or grade level as PDF. Two report card types: **Mid Term report card** (Mid Term results, grades, rank and PASS/FAIL as a progress assessment, with no outcome) and **Final Term report card** (Final Term results, grades, rank, the PASS/FAIL result status and the **end-of-year outcome** ("Promoted to {next grade}" / "Repeats {grade}" / "Graduated"), with the Mid Term results shown alongside in a separate column labelled **"Reference Only – Not Combined"**). **No combined or annual percentage, grade or rank** appears on either card (GP-5, GP-6). Layout **confirmed** in [09 — Report Card Layout](09-report-card-layout.md) (C-20). | M |
+| FR-RPC-01 | Generate report cards per student, section or grade level as PDF. Two report card types: **Mid Term report card** (Mid Term results, grades, rank and PASS/FAIL as a progress assessment, with no outcome) and **Final Term report card** (Final Term results, grades, rank, the PASS/FAIL result status and the **end-of-year outcome** ("Promoted to {next grade}" / "Repeats {grade}" / "Graduated"), with the Mid Term results shown alongside (or "No Mid Term Result" for a Mid Term late joiner, GP-17) in a separate column labelled **"Reference Only – Not Combined"**). **No combined or annual percentage, grade or rank** appears on either card (GP-5, GP-6). Layout **confirmed** in [09 — Report Card Layout](09-report-card-layout.md) (C-20). | M |
 | FR-RPC-02 | Contents (C-20): school header and logo, student details including the **four-part name** (C-12), term label; for each subject the **mark (out of 100), percentage and letter grade**; **total marks obtained / total possible marks**, overall term percentage (2 decimals, truncated), overall letter grade, **section rank and grade rank**, **result status** (Mid Term: PASS or FAIL, labelled "academic progress assessment – does not affect promotion"; Final Term: PASS or FAIL plus the end-of-year outcome), the grading scale legend, term attendance summary, class teacher and principal remarks, signatures of class teacher, principal and **parent/guardian**, school stamp, issue date and **document number**. **Not printed:** student photo, parent/guardian name and phone (C-20). | M |
 | FR-RPC-03 | Report card language: **bilingual, Somali first and English second** (C-20). The Somali wording is provisional until reviewed by a Somali language specialist (Q-G6). | M |
 | FR-RPC-04 | Class teacher and principal remarks entered per student, with optional preset comments | S |
 | FR-RPC-05 | Only PUBLISHED results can appear on an official report card | M |
-| FR-RPC-06 | Withhold report cards for students with outstanding fees | C (Q-F7, policy decision) |
+| FR-RPC-06 | Report cards are **never withheld** for unpaid fees in v1, and there is no setting to do so (C-36). | M |
 
 ### 2.15 Fees & Fee Structures (FEE)
 
@@ -310,7 +313,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-FEE-02 | Fee structure per grade level per academic year: items with category, amount, frequency and due rule. The supported frequencies are **MONTHLY, TERMLY and ONE_TIME**; **ANNUAL is not supported** (C-19). **ONE_TIME** means charged once per enrolment in the academic year (e.g. registration). **TERMLY** means charged once per term, i.e. once for **Mid Term** and once for **Final Term**, due a configured number of days after the term starts. **MONTHLY** charges are labelled with the term their month falls in. | M |
 | FR-FEE-03 | Generate student charges (invoices) from fee structures for a billing period (a month, a term — Mid Term / Final Term — or the one-time charges of the academic year), for all active students, with a preview. **Tuition** items are skipped for FREE students; all other items are charged to them normally (C-17). Running it again for the same period must not create duplicates (idempotent). | M |
 | FR-FEE-04 | Ad-hoc charges for an individual student (e.g. lost book, uniform) | M |
-| FR-FEE-05 | Discounts: partial reductions (percentage or fixed) per student per category, e.g. sibling or staff-child discounts | S (Q-F3) |
+| FR-FEE-05 | Discounts: **fixed-amount or percentage** reductions per student per category (e.g. sibling or staff-child discounts), each **subject to approval** (C-33) | M |
 | FR-FEE-06 | Waive or void a charge with a reason, an approval and an audit entry. Never hard-delete. | M |
 | FR-FEE-07 | Excel import of fee structures and opening balances (migration of existing debts) | M |
 
@@ -318,11 +321,11 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 
 | ID | Requirement | P |
 |----|-------------|---|
-| FR-PAY-01 | Record a payment: student, amount, date, method (CASH, BANK, MOBILE_MONEY with provider such as EVC Plus/Zaad/eDahab/Sahal, CHEQUE, OTHER), reference number, payer name, received by | M |
+| FR-PAY-01 | Record a payment: student, amount, date, method (CASH, BANK, MOBILE_MONEY with provider such as EVC Plus/Zaad/eDahab/Sahal, CHEQUE, OTHER), reference number (mandatory for mobile money; recorded manually, no provider integration in v1, C-34), payer name, received by | M |
 | FR-PAY-02 | Allocate the payment to outstanding charges, oldest first by default, with manual allocation available. Any excess becomes student credit. | M |
-| FR-PAY-03 | Every payment produces a unique, sequential receipt number per school, formatted for example `GK-RCPT-2026-000123` | M |
-| FR-PAY-04 | Receipt PDF (A4 and optionally A5/half page) with school details, itemised allocation, balance after payment, amount in words (Somali/English), cashier signature | M |
-| FR-PAY-05 | Void a payment (no edits, no deletes) with a reason. **[PROPOSED]** Voiding needs a second approver (School Admin). Voided receipts stay visible, marked VOID. | M |
+| FR-PAY-03 | Every payment produces a unique receipt number, **sequential without gaps** per school per year, formatted for example `GK-RCPT-2026-000123` (C-39) | M |
+| FR-PAY-04 | Receipt PDF, **A4 by default with an optional half-page (A5) format**, **bilingual labels**, school details, itemised allocation, balance after payment, amount in words (Somali/English), cashier signature (C-39) | M |
+| FR-PAY-05 | Void a payment (no edits, no deletes) with a reason. **[PROPOSED] (Q-M3)** Voiding needs School Admin approval. Voided receipts stay visible, marked VOID. | M |
 | FR-PAY-06 | Daily cash report per cashier and per method. End-of-day reconciliation. | M |
 | FR-PAY-07 | Refunds of student credit | S |
 
@@ -344,7 +347,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-BAL-02 | Each student has a **billing status** (FEE_PAYING or FREE, FR-FRE-01) and, per period/year, a **fee status** derived from the ledger: **PAID** (balance = 0 and charges > 0), **PARTIAL** (0 < paid < due), **UNPAID** (paid = 0 and due > 0), or **CREDIT** when overpaid. For a FREE student the **FREE** status is **always displayed**; their non-tuition charges (books, uniforms, transport, …) keep their **own** fee status, shown next to FREE. A FREE student with no charges in the period shows FREE only. FREE never implies that non-tuition charges are waived; only an explicit, approved waiver does that (C-17, C-22). | M |
 | FR-BAL-03 | Outstanding report by class/section, by student, by term (Mid Term / Final Term) and by aging bucket (0–30, 31–60, 61–90, 90+ days). Unpaid non-tuition charges of FREE students are included and marked with the FREE badge (C-22). | M |
 | FR-BAL-04 | Class-based financial report: per section, students, free count, expected, collected, outstanding, collection rate. Expected and outstanding include the non-tuition charges of FREE students (C-22). | M |
-| FR-BAL-05 | Student fee statement PDF (all charges, payments and running balance) | M |
+| FR-BAL-05 | Student fee statement PDF (all charges, payments and running balance). Balances from previous academic years stay on that year's record and are shown as arrears (C-37). | M |
 
 ### 2.19 Income & Expenses (FIN)
 
@@ -353,9 +356,9 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-FIN-01 | Income and expense categories, configurable per school | M |
 | FR-FIN-02 | Record other income (donations, grants, rentals) and expenses (salaries, utilities, supplies, maintenance) with date, amount, method, reference, attachment (receipt image) | M |
 | FR-FIN-03 | Fee payments automatically appear as income under "Student Fees". They are not entered twice. | M |
-| FR-FIN-04 | Expense approval workflow (recorded → approved) | S (Q-F6) |
+| FR-FIN-04 | Expense approval workflow (RECORDED → APPROVED). Expenses are recorded by the Accountant and **recognised in financial reports only after School Admin approval** (C-35). | M |
 | FR-FIN-05 | Accounts / cash locations (main cash box, bank account, mobile money wallet), with balance per account | S |
-| FR-FIN-06 | Reports: income vs expense by month, by category; profit/loss summary for a period | M |
+| FR-FIN-06 | Reports: income vs expense by month, by category; profit/loss summary for a period. Only APPROVED expenses are counted (C-35). | M |
 
 ### 2.20 Library Management (LIB)
 
@@ -365,7 +368,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-LIB-02 | Issue and return books to students or staff with due date; copy status (AVAILABLE, ON_LOAN, LOST, DAMAGED, RETIRED) | M |
 | FR-LIB-03 | Overdue list and notifications | M |
 | FR-LIB-04 | Lost/damaged book charge to the student account | S |
-| FR-LIB-05 | Who manages the library: **[PROPOSED]** an optional "Librarian" custom role, or the School Admin (Q-G1) | — |
+| FR-LIB-05 | The library is managed by a **Librarian custom role** (C-27) or the **School Admin** (C-40) | M |
 
 ### 2.21 Inventory Management (INV)
 
@@ -394,7 +397,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-NTF-01 | In-app notifications for staff users, with an unread badge and a notification centre | M |
 | FR-NTF-02 | System events: attendance not taken, marks entry deadline, exam published, low stock, overdue library books, payment voided, import completed | M |
 | FR-NTF-03 | Announcements: School Admin/Principal sends to all staff, to a role or to individuals | M |
-| FR-NTF-04 | Channel abstraction ready for SMS/email (e.g. fee reminders to guardians) without implementing a provider in v1 | S (Q-N1) |
+| FR-NTF-04 | Channel abstraction ready for SMS/email (e.g. fee reminders to guardians). **No SMS or email provider in v1** (C-46). | S |
 
 ### 2.24 Reports & Analytics (RPT)
 
@@ -415,8 +418,8 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-USR-03 | Force password change on first login and after an admin reset | M |
 | FR-USR-04 | Session management: list active sessions, sign out other sessions; admin can revoke all sessions of a user | M |
 | FR-USR-05 | Audit log viewer with filters (user, action, entity, date). School Admin sees their school; Super Admin sees platform events. | M |
-| FR-USR-06 | Per-school custom roles built from the permission catalogue (e.g. Librarian, Receptionist) | S (Q-R1) |
-| FR-USR-07 | Optional two-factor authentication (TOTP), required for Super Admin | S (Q-S1) |
+| FR-USR-06 | Per-school custom roles built from the permission catalogue (e.g. Librarian, Receptionist), delivered in **Phase 3**; platform permissions cannot be granted (C-27) | M |
+| FR-USR-07 | Two-factor authentication (TOTP): **mandatory for Super Admin**, **optional for School Admin and Accountant** (C-29) | M |
 
 ### 2.26 Excel import & export (XLS), cross-cutting
 
@@ -431,7 +434,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | FR-XLS-07 | Downloadable error report: the original file plus an "Errors" column, so users can fix it and re-upload | M |
 | FR-XLS-08 | Commit is all-or-nothing per import (single transaction, or batched with rollback) and is audit-logged | M |
 | FR-XLS-09 | Export any filtered list to Excel (and CSV), honouring the user's permissions and active filters | M |
-| FR-XLS-10 | **Student import template (C-12, C-13).** Required columns: Admission No. (or auto), **First Name**, **Father's Name**, **Grandfather's Name**, **Fourth Name**, Gender, Date of Birth, Grade, Section, **Parent/Guardian Full Name**, **Parent/Guardian Phone**. Optional: Guardian Relationship, Guardian Secondary Phone, Place of Birth, Nationality, Address, Admission Date, Previous School. Row errors include a missing name part, missing guardian name or phone, and an invalid phone format. **[PROPOSED]** If a guardian with the same normalised phone number already exists, the preview proposes linking the student to that guardian (siblings) instead of creating a duplicate, and the user confirms. The guardians template remains available for additional guardians. | M |
+| FR-XLS-10 | **Student import template (C-12, C-13).** Required columns: Admission No. (or auto), **First Name**, **Father's Name**, **Grandfather's Name**, **Fourth Name**, Gender, Date of Birth, Grade, Section, **Parent/Guardian Full Name**, **Parent/Guardian Phone**. Optional: Guardian Relationship, Guardian Secondary Phone, Place of Birth, Nationality, Address, Admission Date, Previous School. Row errors include a missing name part, missing guardian name or phone, and an invalid phone format. **[PROPOSED] (Q-M2)** If a guardian with the same normalised phone number already exists, the preview proposes linking the student to that guardian (siblings) instead of creating a duplicate, and the user confirms. The guardians template remains available for additional guardians. | M |
 
 ### 2.27 PDF reporting (PDF), cross-cutting
 
@@ -453,7 +456,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 
 | ID | Requirement |
 |----|-------------|
-| NFR-P-01 | **[PROPOSED]** Capacity target for v1 design: 100 schools, 3,000 students per school, 200 staff users per school, 50 concurrent users per school (Q-G3). The architecture must scale horizontally beyond this. |
+| NFR-P-01 | Capacity target for v1 design: **100 schools with up to 3,000 students per school** (C-42). Working load-test assumptions (not confirmed by the project owner): 200 staff users and 50 concurrent users per school (Q-M9). The architecture must scale horizontally beyond this. |
 | NFR-P-02 | API p95 latency < 400 ms for standard reads and writes under target load. List endpoints are always paginated (max 100 per page). |
 | NFR-P-03 | First meaningful paint < 3 s on a mid-range phone over a 3G-class connection. Initial JS bundle ≤ 250 KB gzipped, with routes code-split. |
 | NFR-P-04 | Single-document PDF (receipt, report card) generated in < 3 s. A class batch of 50 report cards in < 60 s in the background. |
@@ -466,7 +469,7 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 | NFR-R-01 | Availability target 99.5% monthly, excluding announced maintenance windows |
 | NFR-R-02 | Backups: **RPO ≤ 15 minutes**, **RTO ≤ 4 hours** (see 06 — Security §9) |
 | NFR-R-03 | Financial operations are ACID transactions. Receipt numbering never produces duplicates. |
-| NFR-R-04 | Idempotency keys on payment creation and charge generation, so a retry on a flaky network does not double-post |
+| NFR-R-04 | Idempotency keys on payment creation, charge generation and import commits, so a retry on a flaky network never double-posts (C-41) |
 | NFR-R-05 | Graceful degradation: if the PDF worker is down, the core app keeps working and PDF jobs queue |
 
 ### 3.3 Security and privacy
@@ -504,6 +507,6 @@ Notation: **FR-[module]-[nn]**. Priority: **M** = must have for v1, **S** = shou
 
 | ID | Requirement |
 |----|-------------|
-| NFR-C-01 | Financial records kept for at least 7 years **[PROPOSED]** (Q-G5). Audit logs kept ≥ 2 years. |
+| NFR-C-01 | Financial records kept for **7 years** and audit logs for **2 years**, subject to applicable legal requirements (C-44). Retention of student records: Q-M8. |
 | NFR-C-02 | A school can export all its data (Excel/CSV archive) on request |
 | NFR-C-03 | Process for offboarding a school: suspend, then export, then delete after a grace period, with deletion recorded |

@@ -1,14 +1,15 @@
 # 09 — Report Card Layout
 
-**Status: CONFIRMED (C-20).** The project owner reviewed and approved all nine design choices of Q-E6 (§6). The content rules this layout applies (four-part name, marks, percentages, grades, PASS/FAIL, outcomes, ABSENT, ranking, rounding) come from confirmed decisions C-01 to C-14.
+**Status: CONFIRMED (C-20).** The project owner reviewed and approved all nine design choices of Q-E6 (§6). The content rules this layout applies (four-part name, marks, percentages, grades, PASS/FAIL, outcomes, ABSENT, ranking, rounding, Mid Term late joiners) come from confirmed decisions C-01 to C-14 and C-23.
 
 ## 1. Design principles
 
 - **One page, A4 portrait** (210 × 297 mm), margins 12 mm. It prints cleanly in black and white: status is never shown by colour alone.
-- **Bilingual, Somali first and English second** (e.g. "Natiijada / Result"), on every card (C-20, Q-E6.7). The Somali wording is accepted **provisionally** and is reviewed by a Somali language specialist before the pilot (Q-E6.8, Q-G6). The term labels stay "Mid Term" and "Final Term" (Q-AY1).
+- **Bilingual, Somali first and English second** (e.g. "Natiijada / Result"), on every card (C-20, Q-E6.7). The Somali wording is accepted **provisionally** and is reviewed by a Somali language specialist before the pilot (Q-E6.8, Q-G6). The term labels stay "Mid Term" and "Final Term" (C-32).
 - **Two card types**: the **Mid Term report card** and the **Final Term report card**. There is no annual card, annual column, combined percentage or annual rank (C-02).
 - **Only published results** appear (FR-RPC-05). Every figure comes from the term's result snapshot, so the card always matches the system.
 - **Percentages are shown to 2 decimals, truncated, never rounded up.** Grades and PASS/FAIL are decided on exact values (C-04).
+- **Never withheld for unpaid fees** in v1, and no fee information appears on the card (C-36).
 - **No student photo and no parent/guardian contact details** are printed (Q-E6.2, Q-E6.9). Both stay in the student record.
 
 ### 1.1 Mandatory content
@@ -119,7 +120,7 @@ Every report card contains:
 | Student in the configured final grade who passes | Outcome "Graduated" (C-09) |
 | Student who fails the Final Term | Result FAIL, outcome "Repeats {grade}" |
 | Late joiner without a Final Term result (C-10) | **No Final Term report card is issued.** A one-page "Placement notice" in the same style is printed after the School Admin's placement decision (approved with the layout, Q-E6.1). |
-| Student without a published Mid Term result (e.g. joined after Mid Term) | **[PROPOSED] (Q-E14)** The Mid Term reference column shows "—" for each subject and "No Mid Term result" in the summary. The Final Term result and outcome are unaffected. |
+| Student who joined after the Mid Term examination (no active enrolment on the first Mid Term paper date) | **Confirmed (C-23):** no Mid Term report card is issued. On the Final Term card the Mid Term reference column shows **—** for each subject mark and **"No Mid Term Result"** in the summary. No artificial zero or FAIL is shown. The Final Term result is calculated normally, and the Final Term alone decides promotion, repetition or graduation. |
 | Result corrected after publication | The re-published version is printed. The footer shows "Revised – version N" and the new issue date. |
 
 ## 6. Approved design choices (Q-E6, CONFIRMED as C-20)

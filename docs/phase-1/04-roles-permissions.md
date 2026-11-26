@@ -10,9 +10,9 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
                      Scope rules evaluated in services (tenant, assignment, ownership)
 ```
 
-- **Permission** = `module.action`, e.g. `students.read`, `marks.enter`, `payments.void`. The catalogue is defined in code (`packages/shared/permissions.ts`), seeded into the database and versioned with the application.
-- **Role** = a named set of permissions. The five **system roles** are seeded and cannot be deleted, and their permissions cannot be changed by schools. **[PROPOSED]** Schools may create **custom roles** (e.g. Librarian, Receptionist, Deputy Principal) from the permission catalogue, but cannot grant platform permissions (Q-R1).
-- **School boundary (D-01, confirmed as C-21):** every school user (School Admin, Principal, Accountant, Teacher and custom roles) belongs to exactly one school and can reach only that school's records. No permission, role or scope gives a school user access to another school. The Platform Super Admin manages the platform (schools, platform users, settings, platform audit) with the `PLATFORM` scope described below; access to a school's own data follows the support-session rule (Q-P1).
+- **Permission** = `module.action`, e.g. `students.read`, `marks.enter`, `payments.void.approve`. The catalogue is defined in code (`packages/shared/permissions.ts`), seeded into the database and versioned with the application.
+- **Role** = a named set of permissions. The five **system roles** are seeded and cannot be deleted, and their permissions cannot be changed by schools. Schools may create **custom roles** (e.g. Librarian, Receptionist, Deputy Principal) from the permission catalogue, delivered in Phase 3, but cannot grant platform permissions (confirmed, C-27).
+- **School boundary (D-01, confirmed as C-21):** every school user (School Admin, Principal, Accountant, Teacher and custom roles) belongs to exactly one school and can reach only that school's records. No permission, role or scope gives a school user access to another school. The Platform Super Admin manages the platform (schools, platform users, settings, platform audit) with the `PLATFORM` scope described below; access to a school's own data is possible only through a read-only, time-limited, logged support session (C-25).
 - **Scope** = which records within a granted permission a user can reach. It is enforced in services, not only in the UI:
   - `TENANT`: all records of the user's school (default for school roles).
   - `ASSIGNED`: only sections/subjects linked through `teaching_assignment` or `section.class_teacher_id` (Teacher).
@@ -25,7 +25,7 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
 
 | Role | Scope | Purpose |
 |------|-------|---------|
-| **Platform Super Admin** | Platform | Operates the platform: onboards and suspends schools, creates first School Admins, manages platform settings and system health, views platform audit logs. **No routine access to school data**; time-limited, audited support sessions only (Q-P1). |
+| **Platform Super Admin** | Platform | Operates the platform: onboards and suspends schools, creates first School Admins, manages platform settings and system health, views platform audit logs. **No routine access to school data**; read-only, time-limited, logged support sessions only, visible to the school (C-25). |
 | **School Admin** | Whole school | The school's owner and administrator: settings, users and roles, all modules, approvals for sensitive operations (free status, voids, waivers, exam unlocks). |
 | **Principal** | Whole school, academic focus | Academic leadership: academic years, classes, subjects, timetables, exams (approve, lock, publish), results, report cards, attendance oversight, staff attendance. Read-only finance summaries. |
 | **Accountant** | Whole school, finance focus | Fee structures, charges, payments, receipts, balances, income/expenses, financial reports. Can *request* free status and waivers; cannot approve their own requests. Read-only student and guardian contact data. |
@@ -72,7 +72,7 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 |---|:---:|:---:|:---:|:---:|:---:|
 | Schools (create, suspend, platform settings) | F | — | — | — | — |
 | Platform audit, health, statistics | F | — | — | — | — |
-| School data (any module) | Support session only | — | — | — | — |
+| School data (any module) | Read-only, time-limited, logged support session only, visible to the school (C-25) | — | — | — | — |
 | Dashboard | Platform | School | Academic | Finance | Own classes |
 | School profile & settings | — | F | R | R | — |
 | Academic years, terms, calendar | — | F | F | R | R |
@@ -86,16 +86,17 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Timetable | — | F | F | — | S (R, own) |
 | Students: view | — | F | F | R (basic) | S (R) |
 | Students: create/edit/transfer/status | — | F | F | — | — |
-| Students: medical notes | — | F | F | — | S (R) **[PROPOSED]** |
+| Students: medical notes | — | F | F | — | S (R) **[PROPOSED] (Q-M4)** |
 | Guardians / parent info | — | F | F | R (contact) | S (R, contact) |
 | Primary guardian name & phone (mandatory, C-13): view | — | F | F | R | S (R, assigned sections) |
 | Primary guardian name & phone: edit / replace | — | F | F | — | — |
 | Guardian contact list report / export | — | F | F | R | S (own sections) |
 | Staff records | — | F | R | R (basic) | O |
 | Staff sensitive data (salary, ID) | — | F | — | R | — |
-| Student attendance: take | — | F | F | — | S |
-| Student attendance: edit after lock window | — | F | F | — | — |
-| Staff attendance & leave | — | F | F | — | O (R) |
+| Student attendance: take (daily per section, C-31) | — | F | F | — | S |
+| Student attendance: edit until midnight the same day | — | F | F | — | S (own sections) |
+| Student attendance: edit after midnight (lock) | — | F | F | — | — |
+| Staff attendance & leave (recorded by School Admin or Principal, C-31) | — | F | F | — | O (R) |
 | Exams: create, schedule | — | F | F | — | — |
 | Exams: lock / publish / unlock | — | F | F | — | — |
 | Marks entry | — | F | F | — | S |
@@ -108,14 +109,14 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Fee categories & structures | — | F | R | F | — |
 | Generate charges | — | F | — | F | — |
 | Ad-hoc charges | — | F | — | F | — |
-| Discounts | — | F | — | Rq | — |
+| Discounts | — | F + A | — | Rq | — |
 | Waive charges | — | A | — | Rq | — |
 | Free student status | — | A | Rq | Rq | — |
 | Payments & receipts: record, print | — | F | R | F | — |
 | Payments: void / refund | — | A | — | Rq | — |
 | Outstanding balances | — | F | R | F | — |
 | Income & expenses | — | F + A | R | F (record) | — |
-| Library | — | F | R | — | R (catalogue) |
+| Library (or a Librarian custom role, C-40) | — | F | R | — | R (catalogue) |
 | Inventory | — | F | R | F | — |
 | Transport | — | F | R | R (+ fees) | — |
 | Announcements | F (platform-wide) | F | F | — | — |
@@ -125,7 +126,7 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Reports: operational (library/inventory/transport) | — | F | R | R | — |
 | Excel export of lists | — | F | F | Finance + basic student | S |
 | Users & roles | Platform users + first school admin | F | — | — | — |
-| Audit logs | Platform | School | R (academic events) **[PROPOSED]** | — | — |
+| Audit logs | Platform | School | R (academic events) **[PROPOSED] (Q-M5)** | — | — |
 | Own profile, password, sessions, language | O | O | O | O | O |
 
 ## 5. Sensitive operations (maker–checker and audit)
@@ -134,16 +135,18 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 |-----------|-----------|----------|-------|
 | Grant/revoke FREE status | Accountant, Principal | School Admin | Reason category + notes required. FREE exempts tuition only (C-17). When a student becomes FREE mid-year, **only the School Admin** decides whether existing unpaid charges remain payable (KEEP) or are waived (WAIVE); decision, reason, user and date are audit-logged; future tuition charges stop (C-18). |
 | Waive a charge | Accountant | School Admin | Reason required |
-| Void a payment | Accountant | School Admin | Receipt stays, marked VOID; income transaction voided |
+| Void a payment | Accountant | School Admin (Q-M3) | Receipt stays, marked VOID; income transaction voided |
 | Refund credit | Accountant | School Admin | Creates an expense/refund transaction |
+| Apply a discount (fixed or percentage, C-33) | Accountant | School Admin | Reason required; applies only after approval |
+| Recognise an expense (C-35) | Accountant | School Admin | Counted in financial reports only after approval |
 | Unlock a locked/published exam | Principal or School Admin | — (self, with reason) | Snapshots invalidated; notification to School Admin |
 | End-of-year outcome (PASS → promoted, FAIL → repeat grade) | System (automatic on Final Term publish) | **None: no approval step** (C-06) | Recorded and audit-logged as a system action. Changes only via an audited exam unlock and re-publish. |
 | Placement of a PENDING PLACEMENT late joiner (C-10) | School Admin | — (self, mandatory reason) | Decision, reason, responsible user and date stored on the enrolment and in the audit log. Never applies to enrolled-but-absent students (ABSENT = 0/100). |
-| Edit attendance after lock window | Principal/School Admin | — | Audited with reason |
+| Edit attendance after the same-day midnight lock (C-31) | Principal/School Admin | — | Audited with reason |
 | Change a user's roles | School Admin | — | Audited; permission version bumped; sessions refreshed |
-| Super Admin support session | Super Admin | — | Reason, time limit; visible in the school's audit log |
+| Super Admin support session (C-25) | Super Admin | — | Mandatory reason, time limit, **read-only**; every action logged; visible in the school's audit log |
 
-**[PROPOSED]** A School Admin can approve their own requests, because small schools may have only one admin; the audit log shows this. This is configurable per school (Q-R2).
+**Self-approval (confirmed, C-28):** a School Admin may approve their own requests, because small schools may have only one admin; the audit log flags every self-approval. A school setting (`require_second_approver`) can require a second, different approver.
 
 ## 6. Enforcement checklist (applies to every endpoint)
 

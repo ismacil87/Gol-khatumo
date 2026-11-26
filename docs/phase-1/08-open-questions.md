@@ -1,6 +1,6 @@
 # 08 — Risks, Technical Decisions & Open Questions
 
-Every open item below has a **proposed default**, so you can approve Phase 1 by accepting the defaults and changing only the ones you disagree with. Confirmed decisions are listed in §0 (C-01 to C-22); the original question and decision IDs are kept and marked CONFIRMED where they were answered. All items that were marked ★ (critical: they change the database schema or financial behaviour) are now confirmed; **no critical question remains open**. The remaining open items can be accepted with their proposed defaults or decided during the phase that first needs them.
+Every open item below has a **proposed default**, so you can approve Phase 1 by accepting the defaults and changing only the ones you disagree with. Confirmed decisions are listed in §0 (C-01 to C-47); the original question and decision IDs are kept and marked CONFIRMED where they were answered. All items that were marked ★ (critical: they change the database schema or financial behaviour) are now confirmed; **no critical question remains open**. The remaining open items need school-specific information from the project owner (§2) or are minor proposals listed in §2a.
 
 ## 0. Confirmed by the project owner
 
@@ -28,20 +28,45 @@ Every open item below has a **proposed default**, so you can approve Phase 1 by 
 | C-20 | **Report card design (Q-E6 approved, all nine choices).** (1) One-page A4 portrait layout as proposed, including the late-joiner placement notice. (2) No student photo in the initial release. (3) The Final Term card includes the Mid Term column, labelled **"Reference Only – Not Combined"**. (4) Both Section Rank and Grade Rank. (5) Parent/guardian signature line. (6) QR verification deferred to a future release; the document number is printed now. (7) Bilingual, **Somali first, English second**. (8) Somali wording accepted provisionally, subject to review by a Somali language specialist. (9) Parent/guardian name and phone are **not** printed on the card. Mandatory content stays: separate Mid Term and Final Term results, four-part name, overall percentage, grade, PASS/FAIL and the Final Term promotion/repetition/graduation status. Resolves Q-E6. | Report Card Layout (09, now CONFIRMED). Requirements FR-RPC-01/02/03, FR-PDF-07. Architecture PDF section. Phase 6 acceptance criteria. Report card module (05). |
 | C-21 | **Multi-school database model (D-01 approved).** All schools share one database and schema. Every school-owned record carries `school_id` and is strictly isolated by it. School Admins (and every other school user) access only their own school's data; no school can access another school's records. Isolation is enforced in several server-side layers (schema, composite foreign keys, tenant-scoped data access, authorization, automated tests), never only in the frontend. The Platform Super Admin manages the platform according to the approved permissions model (04). | Architecture §6 (CONFIRMED), ERD conventions, Security §2, Roles & Permissions §1/§6, Requirements NFR-S-01, Modules, Phase 2 and every phase's definition of done (isolation tests). |
 | C-22 | **Fee status of FREE students (Q-F12 approved).** The FREE status is **always displayed** for students exempt from tuition. Their other applicable charges (books, uniforms, transport, …) keep their **own** financial status: **PAID, PARTIAL, UNPAID or CREDIT**, shown alongside the FREE status. FREE status never implies that non-tuition charges are waived; only an explicit, audited waiver does that. A FREE student with no charges in the period shows FREE only. Resolves Q-F12. | Requirements FR-FRE-02/04/05, FR-BAL-02/03/04, FR-STU-06. ERD §8.1 invariant 3 (billing status and fee status are separate values). Modules (free-student and balances). Phase 7 acceptance criteria. |
+| C-23 | **Students who join after the Mid Term examination (Q-E14 approved).** A student with no active enrolment on the first Mid Term paper date takes no part in the Mid Term examination: no marks, no ABSENT, no artificial zero, no FAIL and no Mid Term snapshot or rank. Their Final Term report card shows **—** for each Mid Term subject mark and **"No Mid Term Result"** in the Mid Term reference column. Final Term results are calculated normally, and the **Final Term alone** determines promotion, repetition or graduation (C-06, C-09). Resolves Q-E14. | Requirements GP-17, FR-RNK-02, FR-RPC-01. ERD rule "Mid Term late joiners". Report card (09 §5). Phase 6 tests. |
+| C-24 | **Technical stack (D-02 to D-09 approved).** One code repository (pnpm-workspaces monorepo, D-02); UUIDv7 primary keys (D-03); Redis + BullMQ job queue (D-04); HTML/CSS → headless Chromium PDFs (D-05); SheetJS CE + ExcelJS for Excel (D-06); short-lived access tokens with rotating refresh tokens (D-07); Tailwind CSS + Radix UI primitives (D-08); Zod shared validation with generated OpenAPI (D-09). The previously approved base stack is unchanged: Node.js, Express.js, TypeScript, React, MySQL, Prisma. | Architecture §2, §4, §8.1; ERD conventions; Security §1 (tokens); Phase 2 deliverables. |
+| C-25 | **Super Admin access to school data (Q-P1 approved).** Only through a **time-limited, logged, read-only support session** for one school, with a stated reason, visible to that school in its audit log. No write access to school data in any support session. | Architecture §6.3; ERD `support_session` (no write flag); Roles & Permissions matrix and sensitive operations; Security audit list; Phase 3 tests. |
+| C-26 | **No school billing in v1 (Q-P2 approved).** The platform does not bill schools. The `schools` table may reserve a `plan` field for later. | Requirements §1.3 out of scope. |
+| C-27 | **Custom roles in Phase 3 (Q-R1 approved).** Schools can create custom roles from the permission catalogue (e.g. Librarian, Receptionist); platform permissions can never be granted to them. | Requirements FR-USR-06; Roles & Permissions §1; Phase 3 deliverables and tests. |
+| C-28 | **Self-approval (Q-R2 approved).** A School Admin may approve their own requests; every self-approval is audit-logged. The system supports a school setting that requires a second, different approver. | Roles & Permissions §5; ERD `school_settings.finance_options` / approval rule; Phase 7 tests. |
+| C-29 | **Two-factor authentication (Q-S1 approved).** TOTP two-factor authentication is **mandatory for the Platform Super Admin** and **optional** for School Admin and Accountant. | Requirements FR-USR-07; Security §1 (MFA); Phase 3 tests. |
+| C-30 | **Admission number format (Q-ST2 approved).** `GK-{YYYY}-{0000}`, auto-generated from a per-school sequence; editable for historical students; unique per school. | Requirements FR-STU-01, FR-SCH-08; ERD `number_sequence` (ADMISSION); Phase 4 tests. |
+| C-31 | **Attendance (Q-A1 to Q-A3 approved).** Student attendance is taken **daily per section**. Staff attendance is recorded by the **School Admin or Principal** (no self check-in in v1). Teachers can edit attendance for their **own sections until midnight (school time zone) on the same day**; later edits need the Principal (`attendance.edit_locked`). | Requirements FR-SAT-01/03/05, FR-TAT-02; ERD `school_settings`; Permissions matrix; Phase 5 tests. |
+| C-32 | **Term labels (Q-AY1 approved).** The official labels **"Mid Term"** and **"Final Term"** are kept unchanged in both languages. | Requirements AS-1; report card (09). |
+| C-33 | **Discounts (Q-F3 approved).** Fixed-amount and percentage discounts per student per fee category, each subject to approval. | Requirements FR-FEE-05 (now M); ERD `student_discount`; Permissions; Phase 7 tests. |
+| C-34 | **Mobile money (Q-F5 approved).** Recorded manually with provider and transaction reference. No payment-provider integration in v1. | Requirements §1.3, FR-PAY-01; ERD `payment.provider`, `payment.reference`. |
+| C-35 | **Expense approval (Q-F6 approved).** Expenses are recorded by the Accountant and need School Admin approval before they are recognised in financial reports. | Requirements FR-FIN-04 (now M), FR-FIN-06; ERD `finance_transaction.status`; Permissions; Phase 7 tests. |
+| C-36 | **Report cards are never withheld for unpaid fees in v1 (Q-F7 approved).** There is no setting to withhold them. | Requirements FR-RPC-06 (not in v1); Phase 6/7 tests. |
+| C-37 | **Arrears (Q-F8 approved).** Outstanding balances stay on the previous academic year's financial record and appear as arrears; they are not copied into the new year. | Modules §5 (rollover); Requirements FR-BAL-03/05; Phase 7 tests. |
+| C-38 | **No late-payment penalties in v1 (Q-F10 approved).** | Requirements §1.3 out of scope. |
+| C-39 | **Receipt format (Q-F11 approved).** A4 by default with an optional half-page (A5) format, bilingual labels, and sequential numbering without gaps per school per year. | Requirements FR-PAY-03/04; ERD invariant 7 (receipt numbers); Phase 7 tests. |
+| C-40 | **Library management (Q-G1 approved).** The Library module is managed by a Librarian custom role (C-27) or by the School Admin. | Requirements FR-LIB-05; Permissions matrix. |
+| C-41 | **No offline mode in v1 (Q-G2 approved).** Safe retry mechanisms (idempotency keys, retry-safe mutations) prevent duplicate transactions. | Requirements A5, NFR-R-04; Architecture API conventions; Phase 7 tests. |
+| C-42 | **Capacity target (Q-G3 approved).** The platform is designed for **100 schools with up to 3,000 students per school**. | Requirements NFR-P-01; ERD §11 volume notes; Phase 10 load test. |
+| C-43 | **Payroll (Q-G4 approved).** Outside v1. Staff salaries may be recorded as expenses. | Requirements §1.3, FR-STF-06. |
+| C-44 | **Retention (Q-G5 approved).** Financial records are kept for **7 years** and audit logs for **2 years**, subject to applicable legal requirements. | Requirements NFR-C-01; Security §8 and §9. |
+| C-45 | **Pilot (Q-G8 approved).** The system is piloted at Gol Khatumo School after Phase 7. | Milestones §3. |
+| C-46 | **Notifications (Q-N1 approved).** No SMS or email notifications in v1. The channel abstraction is kept ready for future integration. | Requirements §1.3, FR-NTF-04. |
+| C-47 | **Hosting (Q-H1 approved).** The platform stays independent of any hosting provider. The hosting region is chosen to suit users in East Africa. | Architecture §10; README. |
 
 ## 1. Technical decisions for approval
 
 | ID | Decision | Proposed | Alternatives | Why |
 |----|----------|----------|--------------|-----|
 | D-01 | Tenancy model | **CONFIRMED (C-21):** shared DB/schema + `school_id`, five isolation layers | DB per school (rejected) | Lowest operating cost; one migration path; isolation enforced in layers and by tests. Can move a large school to a dedicated DB later. |
-| D-02 | Repository layout | pnpm-workspaces monorepo (`apps/api`, `apps/web`, `packages/shared`) | Separate repositories | Shared types and validation without publishing packages; one CI |
-| D-03 | Primary keys | UUIDv7 strings | Auto-increment integers | Do not leak counts; safe to generate in the application; time-ordered so they index well |
-| D-04 | Background jobs | Redis + BullMQ | MySQL-backed job table (no Redis) | Mature retries, scheduling and progress. Redis also serves rate limiting. Adds one managed service. |
-| D-05 | PDF engine | HTML/CSS → headless Chromium (Playwright) in a worker | pdfmake/PDFKit | Professional layouts, repeating table headers, charts, page X of Y, easier maintenance. Costs a heavier worker image. |
-| D-06 | Excel libraries | SheetJS CE (official distribution, pinned) for parsing .xlsx/.xls/.csv; ExcelJS for styled .xlsx templates and exports | SheetJS only; ExcelJS only | ExcelJS cannot read legacy .xls; SheetJS CE cannot style output. Note: the SheetJS package on the npm registry is outdated, so it is installed from the vendor's official tarball, pinned and checksum-verified. |
-| D-07 | Auth tokens | 15-min JWT in memory + rotating refresh token in httpOnly cookie, server-side sessions | Session cookies only | Works for a separate SPA/API origin, supports revocation and "log out all devices" |
-| D-08 | UI primitives | Tailwind + Radix primitives (own design system) | A full component kit (MUI, Ant) | Accessible, lightweight, consistent with Tailwind, no heavy theme to override |
-| D-09 | Validation & API docs | Zod shared schemas → OpenAPI generation | Hand-written OpenAPI | One source of truth for validation, types and documentation |
+| D-02 | Repository layout | **CONFIRMED (C-24):** pnpm-workspaces monorepo (`apps/api`, `apps/web`, `packages/shared`) | Separate repositories | Shared types and validation without publishing packages; one CI |
+| D-03 | Primary keys | **CONFIRMED (C-24):** UUIDv7 strings | Auto-increment integers | Do not leak counts; safe to generate in the application; time-ordered so they index well |
+| D-04 | Background jobs | **CONFIRMED (C-24):** Redis + BullMQ | MySQL-backed job table (no Redis) | Mature retries, scheduling and progress. Redis also serves rate limiting. Adds one managed service. |
+| D-05 | PDF engine | **CONFIRMED (C-24):** HTML/CSS → headless Chromium (Playwright) in a worker | pdfmake/PDFKit | Professional layouts, repeating table headers, charts, page X of Y, easier maintenance. Costs a heavier worker image. |
+| D-06 | Excel libraries | **CONFIRMED (C-24):** SheetJS CE (official distribution, pinned) for parsing .xlsx/.xls/.csv; ExcelJS for styled .xlsx templates and exports | SheetJS only; ExcelJS only | ExcelJS cannot read legacy .xls; SheetJS CE cannot style output. Note: the SheetJS package on the npm registry is outdated, so it is installed from the vendor's official tarball, pinned and checksum-verified. |
+| D-07 | Auth tokens | **CONFIRMED (C-24):** 15-min JWT in memory + rotating refresh token in httpOnly cookie, server-side sessions | Session cookies only | Works for a separate SPA/API origin, supports revocation and "log out all devices" |
+| D-08 | UI primitives | **CONFIRMED (C-24):** Tailwind + Radix primitives (own design system) | A full component kit (MUI, Ant) | Accessible, lightweight, consistent with Tailwind, no heavy theme to override |
+| D-09 | Validation & API docs | **CONFIRMED (C-24):** Zod shared schemas → OpenAPI generation | Hand-written OpenAPI | One source of truth for validation, types and documentation |
 
 ## 2. Business rules needing confirmation
 
@@ -49,83 +74,101 @@ Every open item below has a **proposed default**, so you can approve Phase 1 by 
 
 | ID | Question | Proposed default |
 |----|----------|------------------|
-| Q-P1 | May the Platform Super Admin view school data? | Only through a time-limited, reason-logged, read-only **support session**, which is visible to the school |
-| Q-P2 | Will the platform bill schools (subscriptions, plans, limits)? | Not in v1. The `schools` table reserves a `plan` field for later. |
-| Q-R1 | Can schools create custom roles (e.g. Librarian, Receptionist, Deputy Principal)? | Yes, from the permission catalogue, in Phase 3 |
-| Q-R2 | Maker–checker: may a School Admin approve their own request? | Yes by default (small schools), audited; a school setting can require a different approver |
-| Q-S1 | Two-factor authentication | Mandatory for Super Admin; optional and school-enforceable for School Admin and Accountant |
-| Q-S2 | Login identifier for staff (many may not have email) | **Confirmed (C-15):** email address **or** phone number, both globally unique |
+| Q-P1 | May the Platform Super Admin view school data? | **CONFIRMED (C-25):** only through a time-limited, logged, read-only support session visible to the school |
+| Q-P2 | Will the platform bill schools (subscriptions, plans, limits)? | **CONFIRMED (C-26):** no school billing in v1 |
+| Q-R1 | Can schools create custom roles (e.g. Librarian, Receptionist, Deputy Principal)? | **CONFIRMED (C-27):** yes, from the permission catalogue, in Phase 3 |
+| Q-R2 | Maker–checker: may a School Admin approve their own request? | **CONFIRMED (C-28):** yes, audit-logged; a school setting can require a second approver |
+| Q-S1 | Two-factor authentication | **CONFIRMED (C-29):** mandatory for Super Admin; optional for School Admin and Accountant |
+| Q-S2 | Login identifier for staff (many may not have email) | **CONFIRMED (C-15):** email address **or** phone number, both globally unique |
 
 ### Students & academics
 
 | ID | Question | Proposed default |
 |----|----------|------------------|
-| Q-ST1 | Name structure | **Resolved (C-12):** four mandatory parts: First Name, Father's Name, Grandfather's Name, Fourth Name |
-| Q-ST2 | Admission number format | `GK-{YYYY}-{0000}`, auto-generated, editable for historical students |
+| Q-ST1 | Name structure | **CONFIRMED (C-12):** four mandatory parts: First Name, Father's Name, Grandfather's Name, Fourth Name |
+| Q-ST2 | Admission number format | **CONFIRMED (C-30):** `GK-{YYYY}-{0000}`, auto-generated, editable for historical students |
 | Q-ST3 | Grade structure at Gol Khatumo School | Please list the grades and typical sections (e.g. Grade 1–8 primary, Form 1–4 secondary) |
-| Q-A1 | Student attendance granularity | **Daily** per section (per-period attendance is a later option) |
-| Q-A2 | Who records teacher attendance? | School Admin/Principal or a delegate records it; no self check-in in v1 |
-| Q-A3 | Attendance edit window for teachers | Same day until midnight school time; later edits by the Principal |
-| Q-AY1 | Somali wording of the term labels | Use the official labels "Mid Term" and "Final Term" unchanged in both languages, unless the school provides official Somali labels |
+| Q-A1 | Student attendance granularity | **CONFIRMED (C-31):** daily per section |
+| Q-A2 | Who records teacher attendance? | **CONFIRMED (C-31):** School Admin or Principal; no self check-in in v1 |
+| Q-A3 | Attendance edit window for teachers | **CONFIRMED (C-31):** teachers edit their own sections until midnight the same day; later edits by the Principal |
+| Q-AY1 | Somali wording of the term labels | **CONFIRMED (C-32):** "Mid Term" and "Final Term" kept unchanged |
 | Q-AY2 | Typical term dates | Please give the usual start and end dates of Mid Term and Final Term, so they can pre-fill each new academic year |
-| Q-E1 | Exams held in each term | **Resolved (C-03):** one examination per subject per term, marked out of 100 |
-| Q-E2 | Composition of a term's 100 marks | **Resolved (C-03):** no composition; the single examination is the term result |
-| Q-E3 | Ranking rules | **Resolved (C-11):** rank by exact overall term percentage; ties share a rank (1, 2, 2, 4); ABSENT counts as 0/100 (C-07); EXEMPT excluded; incomplete results and late joiners not ranked |
-| Q-E4 | Grading scale | **Resolved (C-03):** the official scale in Requirements §1.8 |
-| Q-E5 | Promotion rule | **Resolved (C-06):** automatic. PASS → promoted; FAIL → repeats the same grade. No approval or override. |
+| Q-E1 | Exams held in each term | **CONFIRMED (C-03):** one examination per subject per term, marked out of 100 |
+| Q-E2 | Composition of a term's 100 marks | **CONFIRMED (C-03):** no composition; the single examination is the term result |
+| Q-E3 | Ranking rules | **CONFIRMED (C-11):** rank by exact overall term percentage; ties share a rank (1, 2, 2, 4); ABSENT counts as 0/100 (C-07); EXEMPT excluded; incomplete results and late joiners not ranked |
+| Q-E4 | Grading scale | **CONFIRMED (C-03):** the official scale in Requirements §1.8 |
+| Q-E5 | Promotion rule | **CONFIRMED (C-06):** automatic. PASS → promoted; FAIL → repeats the same grade. No approval or override. |
 | Q-E6 | Report card layout | **CONFIRMED (C-20):** all nine design choices Q-E6.1 to Q-E6.9 approved by the project owner as recommended. See [09 — Report Card Layout](09-report-card-layout.md) (status CONFIRMED). |
-| Q-E8 | Decimal places for marks | **Resolved (C-08, C-04):** up to two decimal places, 0.00–100.00; more decimals rejected; exact values, no rounding |
-| Q-E9 | Effect of failing an individual subject | **Resolved (C-05):** no effect on PASS/FAIL if the overall percentage is ≥ 50%; the subject is shown with grade F |
-| Q-E10 | Students in the highest grade who PASS the Final Term | **Resolved (C-09):** GRADUATED; never promoted to a non-existent grade |
-| Q-E11 | Students not enrolled when the Final Term examination took place | **Resolved (C-10):** PENDING PLACEMENT; the School Admin decides placement with a reason (audited); enrolled-but-absent students get ABSENT = 0/100 |
-| Q-E12 | Definitions of the absence-handling options | **Resolved (C-07, revised):** a single fixed rule. ABSENT = 0/100, included in the overall percentage. No alternative options. |
-| Q-E13 | Scope of an absence-policy selection | **No longer applicable (C-07, revised):** there is nothing to select |
-| Q-E14 | Final Term card of a student with no published Mid Term result (joined after the Mid Term examination but before the Final Term examination) | The Mid Term reference column shows "—" per subject and "No Mid Term result"; the Final Term result and outcome are unaffected (09 §5) |
+| Q-E8 | Decimal places for marks | **CONFIRMED (C-08, C-04):** up to two decimal places, 0.00–100.00; more decimals rejected; exact values, no rounding |
+| Q-E9 | Effect of failing an individual subject | **CONFIRMED (C-05):** no effect on PASS/FAIL if the overall percentage is ≥ 50%; the subject is shown with grade F |
+| Q-E10 | Students in the highest grade who PASS the Final Term | **CONFIRMED (C-09):** GRADUATED; never promoted to a non-existent grade |
+| Q-E11 | Students not enrolled when the Final Term examination took place | **CONFIRMED (C-10):** PENDING PLACEMENT; the School Admin decides placement with a reason (audited); enrolled-but-absent students get ABSENT = 0/100 |
+| Q-E12 | Definitions of the absence-handling options | **CONFIRMED (C-07, revised):** a single fixed rule. ABSENT = 0/100, included in the overall percentage. No alternative options. |
+| Q-E13 | Scope of an absence-policy selection | **CONFIRMED (C-07, revised), no longer applicable:** there is nothing to select |
+| Q-E14 | Final Term card of a student with no published Mid Term result (joined after the Mid Term examination but before the Final Term examination) | **CONFIRMED (C-23):** — for each Mid Term subject mark and "No Mid Term Result"; no artificial zero or FAIL; Final Term calculated normally and alone decides the outcome |
 
 ### Finance
 
 | ID | Question | Proposed default |
 |----|----------|------------------|
-| Q-F1 | Currency (or currencies) | **Confirmed (C-16):** USD is the only currency for the initial release; no multi-currency payments |
-| Q-F2 | Do FREE students pay any fees (e.g. uniform, books, exam, transport)? | **Confirmed (C-17):** FREE students are exempt from tuition fees only; other configured charges (books, uniforms, transport, …) may still apply |
-| Q-F3 | Partial discounts (siblings, staff children, partial scholarships)? | Yes: percentage or fixed, per student per category, with approval |
-| Q-F4 | When a student becomes FREE mid-year, what happens to existing unpaid charges? | **Confirmed (C-18):** the School Admin decides KEEP (remain payable) or WAIVE; decision, reason, user and date are audit-logged; future tuition charges stop |
-| Q-F5 | Mobile money (EVC Plus, Zaad, eDahab, Sahal) | Recorded manually with provider and transaction reference; API integration is a later phase |
-| Q-F6 | Expense approval | Expenses are recorded by the Accountant and approved by the School Admin before they count in reports |
-| Q-F7 | Withhold report cards when fees are outstanding? | No by default; optional school setting |
-| Q-F8 | Arrears from previous years | Stay on the old year's ledger and appear as arrears in balances and statements |
-| Q-F9 | Fee frequencies | **Confirmed (C-19):** MONTHLY, TERMLY and ONE_TIME. ANNUAL is not supported. The school configures which frequency each fee item uses. |
-| Q-F10 | Late payment penalties | None in v1 |
-| Q-F11 | Receipt format | A4 by default, optional A5/half-page; bilingual; gapless numbering per school per year |
+| Q-F1 | Currency (or currencies) | **CONFIRMED (C-16):** USD is the only currency for the initial release; no multi-currency payments |
+| Q-F2 | Do FREE students pay any fees (e.g. uniform, books, exam, transport)? | **CONFIRMED (C-17):** FREE students are exempt from tuition fees only; other configured charges (books, uniforms, transport, …) may still apply |
+| Q-F3 | Partial discounts (siblings, staff children, partial scholarships)? | **CONFIRMED (C-33):** fixed-amount and percentage discounts, subject to approval |
+| Q-F4 | When a student becomes FREE mid-year, what happens to existing unpaid charges? | **CONFIRMED (C-18):** the School Admin decides KEEP (remain payable) or WAIVE; decision, reason, user and date are audit-logged; future tuition charges stop |
+| Q-F5 | Mobile money (EVC Plus, Zaad, eDahab, Sahal) | **CONFIRMED (C-34):** recorded manually with the transaction reference; no provider integration in v1 |
+| Q-F6 | Expense approval | **CONFIRMED (C-35):** School Admin approval required before expenses are recognised |
+| Q-F7 | Withhold report cards when fees are outstanding? | **CONFIRMED (C-36):** never withheld for unpaid fees in v1 |
+| Q-F8 | Arrears from previous years | **CONFIRMED (C-37):** stay on the previous academic year's record as arrears |
+| Q-F9 | Fee frequencies | **CONFIRMED (C-19):** MONTHLY, TERMLY and ONE_TIME. ANNUAL is not supported. The school configures which frequency each fee item uses. |
+| Q-F10 | Late payment penalties | **CONFIRMED (C-38):** none in v1 |
+| Q-F11 | Receipt format | **CONFIRMED (C-39):** A4 default, optional half-page, bilingual, gapless sequential numbering |
 | Q-F12 | Fee status shown for a FREE student who has non-tuition charges | **CONFIRMED (C-22):** FREE is always displayed; other charges keep their own PAID / PARTIAL / UNPAID / CREDIT status; FREE never implies that other charges are waived |
 
 ### General
 
 | ID | Question | Proposed default |
 |----|----------|------------------|
-| Q-G1 | Library management staff | Custom role "Librarian" (needs Q-R1), or the School Admin |
-| Q-G2 | Offline support (unreliable internet) | Not in v1; lightweight UI and retry-safe mutations. Offline attendance as a PWA enhancement after Phase 10 if needed. |
-| Q-G3 | Expected scale (schools in 1–3 years, students per school) | 100 schools × 3,000 students design target |
-| Q-G4 | Payroll | Out of scope; salaries recorded as expenses |
-| Q-G5 | Data retention | Financial records 7 years; audit logs 2 years; student records indefinitely while the school is active |
+| Q-G1 | Library management staff | **CONFIRMED (C-40):** Librarian custom role or School Admin |
+| Q-G2 | Offline support (unreliable internet) | **CONFIRMED (C-41):** no offline mode in v1; safe retries prevent duplicate transactions |
+| Q-G3 | Expected scale (schools in 1–3 years, students per school) | **CONFIRMED (C-42):** 100 schools, up to 3,000 students per school |
+| Q-G4 | Payroll | **CONFIRMED (C-43):** outside v1; salaries may be recorded as expenses |
+| Q-G5 | Data retention | **CONFIRMED (C-44):** financial records 7 years, audit logs 2 years, subject to applicable legal requirements |
 | Q-G6 | Somali translations | We draft them; a native speaker from the school reviews them before each release. Who will review? |
 | Q-G7 | Team and timeline | Please confirm team size and any target go-live date (e.g. start of a Mid Term or Final Term) |
-| Q-G8 | Pilot | Pilot at Gol Khatumo School after Phase 7, with backups and basic hardening in place |
-| Q-N1 | SMS/email to guardians | Not in v1; channel abstraction prepared. Which provider would you prefer later (local SMS gateway)? |
-| Q-H1 | Hosting region / provider preference | Provider-independent until Phase 10. Consider a region with good latency to East Africa (e.g. a Middle East, East Africa or Europe region). |
+| Q-G8 | Pilot | **CONFIRMED (C-45):** pilot at Gol Khatumo School after Phase 7 |
+| Q-N1 | SMS/email to guardians | **CONFIRMED (C-46):** no SMS or email in v1; architecture kept ready |
+| Q-H1 | Hosting region / provider preference | **CONFIRMED (C-47):** provider-independent; region chosen to suit users in East Africa |
 | Q-H2 | Domain name | Needed before staging (e.g. `app.<your-domain>`) |
+| Q-G9 | Training and first-line support for school staff | Who provides first-line support to school staff after go-live (the school's own administrator, the platform operator, or both)? Phase 10 delivers the guides and training materials either way. |
+
+## 2a. Minor proposals still open
+
+These defaults appear in the documents as **[PROPOSED] (Q-Mn)**. They do not change the confirmed decisions; each can be accepted as written.
+
+| ID | Question | Recommended option | Why |
+|----|----------|--------------------|-----|
+| Q-M1 | Default country code for guardian phone numbers (school setting) | **+252** | Matches the school's location; numbers entered in local format are normalised to E.164 with it. The school can change the setting. |
+| Q-M2 | Student import: a guardian with the same normalised phone number already exists | **Propose linking** the student to that guardian (siblings); the user confirms in the preview | Avoids duplicate guardian records while keeping a person in control. |
+| Q-M3 | Voiding a payment | **Requires School Admin approval** (self-approval rule C-28 applies) | Payments are the most sensitive financial records; a second look prevents silent reversals. |
+| Q-M4 | Teacher access to students' medical notes | **Read-only, only for students in the teacher's assigned sections** | Teachers need to know about allergies or conditions in class; nobody else outside the leadership sees them. |
+| Q-M5 | Principal access to the audit log | **Read-only, academic events only** (exams, marks, attendance, results) | Supports academic oversight without exposing finance or user-management events. |
+| Q-M6 | Malware scanning of uploaded files | **ClamAV scan before a file becomes available**, added in Phase 10 if the chosen hosting allows it | Uploads come from many staff devices; scanning is the standard control. |
+| Q-M7 | Tamper evidence for the audit log | **Daily hash chain**, Phase 10 | Shows if anyone alters audit history, at very low cost. |
+| Q-M8 | Retention of student records (not covered by C-44) | **Kept while the school is active**; on offboarding, exported and deleted after the grace period (NFR-C-03); subject to applicable legal requirements | Schools need full academic history for transcripts and transfers. |
+| Q-M9 | Load-test assumptions per school | **200 staff users and 50 concurrent users per school**, within the confirmed 100 schools × 3,000 students (C-42) | Gives Phase 10 a concrete concurrency target; can be adjusted once real usage is known. |
+| Q-M10 | Default length of a Super Admin support session (C-25) | **60 minutes**, shorter if the Super Admin chooses; a new session needs a new reason | Long enough to diagnose an issue, short enough to limit exposure. |
 
 ## 3. Gaps identified in the brief
 
-1. **Payroll** is not listed but salaries are a major expense (Q-G4).
-2. **Discounts / partial scholarships** sit between "free" and "fee-paying" and are common in practice (Q-F3).
+1. **Payroll** is not listed but salaries are a major expense. Out of v1; salaries recorded as expenses (C-43).
+2. **Discounts / partial scholarships** sit between "free" and "fee-paying" and are common in practice. Supported with approval (C-33).
 3. **Opening balances** are needed to migrate existing debts on go-live (included in imports: FR-FEE-07).
 4. **Year-end rollover / promotion** is not listed explicitly but is required (FR-SCH-07).
 5. **Leave management** for staff relates to teacher attendance (FR-TAT-03).
-6. **Data migration plan** from current records (paper/Excel), via the import engine (Phase 9). If go-live is earlier, basic student/staff import moves to Phase 4 (decision with Q-G7).
+6. **Data migration plan** from current records (paper/Excel), via the import engine (Phase 9). If go-live is earlier, basic student/staff import moves to Phase 4 (depends on Q-G7).
 7. **Document verification** (QR on receipts and report cards) to fight forged documents (FR-PDF-07). Deferred to a future release; report cards print a unique document number in v1 (C-20).
-8. **Super Admin access policy** to school data (Q-P1).
-9. **Training and support model** for school staff (Phase 10 guides; who provides first-line support?).
+8. **Super Admin access policy** to school data. Read-only, time-limited, logged support sessions (C-25).
+9. **Training and support model** for school staff (Phase 10 guides; first-line support: Q-G9).
 
 ## 4. Risk register
 

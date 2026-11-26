@@ -2,15 +2,15 @@
 
 A secure, cloud-based, multi-school management platform for Gol Khatumo School and future partner schools. Somali and English.
 
-**Planned stack:** Node.js + Express + TypeScript · React + TypeScript + Tailwind CSS · MySQL 8 + Prisma
+**Planned stack:** Node.js + Express + TypeScript · React + TypeScript + Tailwind CSS + Radix UI · MySQL 8 + Prisma · Redis + BullMQ · Zod
 
 ## Status
 
-**Phase 1: Architecture & Planning.** Awaiting approval. See [`docs/phase-1/`](docs/phase-1/README.md).
+**Phase 1: Architecture & Planning.** Decisions C-01 to C-47 confirmed; Phase 2 awaits separate authorisation. See [`docs/phase-1/`](docs/phase-1/README.md).
 
 | Phase | Scope | Status |
 |-------|-------|--------|
-| 1 | Requirements, architecture, ERD, permissions, specifications | In review |
+| 1 | Requirements, architecture, ERD, permissions, specifications | Decisions confirmed; final review |
 | 2 | Project setup, database schema, backend foundation | Not started |
 | 3 | Authentication, user management, admin dashboard | Not started |
 | 4 | Students, parents, teachers & staff | Not started |

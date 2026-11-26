@@ -20,13 +20,13 @@ A phase is complete only when **all** of the following hold:
 ### Phase 1 — Requirements & architecture *(this phase)*
 
 **Deliverables:** this document set.
-**Acceptance:** stakeholders approve the requirements, architecture, ERD, permission matrix and module plan, and answer or accept the defaults for the open questions in 08.
+**Acceptance:** the project owner approves the requirements, architecture, ERD, permission matrix and module plan. Decisions confirmed so far: C-01 to C-47 (08 §0).
 
 ### Phase 2 — Project setup, database schema & backend foundation
 
 **Deliverables**
 
-- Monorepo (pnpm workspaces): `apps/api`, `apps/web` (empty shell), `packages/shared`; TS configs, ESLint, Prettier, Husky pre-commit.
+- Monorepo (one code repository, pnpm workspaces, C-24): `apps/api`, `apps/web` (empty shell), `packages/shared`; TS configs, ESLint, Prettier, Husky pre-commit.
 - Docker Compose for local development: MySQL 8, Redis, MinIO, Mailpit; Dockerfiles for api/worker/web.
 - Complete `schema.prisma` for **all** domains in 03 (so later phases add features, not table rewrites), first migration, seed (permissions, system roles, finance system categories, official grading scale, demo school).
 - API core: config loader with env validation, structured logging, request IDs, error handling (problem+json), Zod validation middleware, pagination helpers, tenant context (AsyncLocalStorage) + Prisma tenant extension, permission guard, audit service, health/readiness, OpenAPI generation.
@@ -45,9 +45,9 @@ A phase is complete only when **all** of the following hold:
 
 **Deliverables**
 
-- Auth: login with email **or** phone number (C-15), refresh rotation, logout, logout-all, change password, forced change, lockout, rate limits; TOTP MFA for Super Admin.
-- Platform: Super Admin UI for schools (create with first School Admin, edit, suspend), support sessions.
-- School: users and roles management, audit log viewer, school profile and settings, language switcher.
+- Auth: login with email **or** phone number (C-15), refresh rotation, logout, logout-all, change password, forced change, lockout, rate limits; TOTP two-factor authentication, mandatory for Super Admin and optional for School Admin and Accountant (C-29).
+- Platform: Super Admin UI for schools (create with first School Admin, edit, suspend), read-only time-limited support sessions (C-25).
+- School: users and roles management including **custom roles** (C-27), audit log viewer, school profile and settings, language switcher.
 - Web shell: responsive layout (sidebar, top bar, mobile drawer), design-system primitives (Button, Input, Select, DatePicker, DataTable, Modal, Toast, Badge, EmptyState, Skeleton), i18n setup, permission-aware routing and menus.
 - Dashboards: platform dashboard; school dashboard skeleton with placeholders for upcoming modules.
 - In-app notification centre (core).
@@ -61,6 +61,10 @@ A phase is complete only when **all** of the following hold:
 - Audit log shows logins, user creation and role changes, with filters.
 - Switching Somali/English changes all visible text immediately and persists across sessions.
 - E2E: login → create user → logout passes on mobile and desktop viewports.
+- **Two-factor authentication (C-29):** a Super Admin cannot complete login without TOTP; School Admin and Accountant can enable or disable it for their own account; recovery codes work once each.
+- **Support sessions (C-25):** a Super Admin without a support session gets 404 for every school route. A support session requires a reason, expires at its end time, and every write endpoint returns 403 inside it. Each request appears in that school's audit log with the session ID.
+- **Custom roles (C-27):** a School Admin creates a "Librarian" role from catalogue permissions and assigns it; granting a `platform.*` permission is rejected.
+- **School isolation (C-21):** the isolation suite covers every Phase 3 route, including users, roles, audit log and settings.
 
 ### Phase 4 — Students, parent information, teachers & staff
 
@@ -75,6 +79,7 @@ A phase is complete only when **all** of the following hold:
 - A teacher sees only students of assigned sections (verified once assignments exist; stubbed by class teacher in this phase). An accountant sees basic student data but cannot edit it.
 - Upload rejects a renamed `.exe` as `.jpg` (magic-byte check). Photos are re-encoded without EXIF.
 - Filtered student list exports to .xlsx with the same rows as the screen.
+- **Admission numbers (C-30):** new students receive `GK-{YYYY}-{0000}` numbers from the school's sequence without duplicates under concurrent creation; a manually entered number for a historical student is accepted if unique and rejected if it already exists.
 
 ### Phase 5 — Academic management
 
@@ -88,6 +93,7 @@ A phase is complete only when **all** of the following hold:
 - A teacher can take attendance only for assigned sections, on working days, within the edit window. The Principal can edit later, with a reason (audited).
 - Monthly attendance register for a section matches the raw records. Holidays are excluded.
 - Rollover is available only after Final Term results are published (stubbed until Phase 6). The preview shows each student's automatic outcome (PROMOTED → next grade level, REPEAT GRADE → same grade level, GRADUATED → no next-year enrolment), plus a separate list of PENDING PLACEMENT late joiners. Automatic outcomes cannot be edited in the preview or through the API. Late joiners are placed only by the School Admin, with a reason. Commit creates next-year enrolments accordingly; re-running it does nothing.
+- **Attendance (C-31):** attendance is taken once per section per day. A teacher can edit their own section's attendance until 23:59 school time on the same day; at 00:00 the edit is rejected and only the Principal or School Admin can change it, with an audit entry. Staff attendance can be recorded only by the School Admin or Principal; there is no self check-in endpoint.
 
 ### Phase 6 — Examinations & results
 
@@ -131,6 +137,8 @@ A phase is complete only when **all** of the following hold:
 - Publishing produces snapshots. Editing marks afterwards requires unlock (audited) and re-publish. Published ranks never change silently.
 - **Ranking ties (C-11):** with exact overall percentages 91.50, 88.00, 88.00 and 80.25, the ranks are **1, 2, 2, 4**. Two students who both display 78.83% (78.833…% and 78.834%) are **not** tied; the higher exact value ranks first. The same results appear in section and grade-level ranks, Mid Term and Final Term, and every term ranking report. Students with incomplete marks or PENDING PLACEMENT are not ranked. All fixtures are hand-calculated.
 - Mid Term and Final Term report card PDFs for a class render in the confirmed layout (C-20, 09 — Report Card Layout): one A4 page, **bilingual with Somali first and English second**, the correct term label and the student's four-part name (C-12); for each subject the mark, percentage and letter grade; term total, overall percentage (truncated), overall grade, **section rank and grade rank**, result status (Mid Term PASS/FAIL labelled as a progress assessment; Final Term PASS/FAIL with Promoted / Repeats / Graduated), grading scale legend, term attendance, remarks, class teacher, principal and **parent/guardian signature lines**, and a unique **document number** in the footer. The Final Term card shows the Mid Term results in a separate column headed **"Reference Only – Not Combined"**, with no combined or annual figure. Tests assert that **no student photo, no guardian name or phone and no QR code** are printed, and that reprinting the same result version keeps its document number.
+- **Mid Term late joiners (C-23):** a student first enrolled after the first Mid Term paper date has no Mid Term marks, no ABSENT, no Mid Term snapshot and no Mid Term rank; no Mid Term report card is generated. Their Final Term card shows "—" for each Mid Term mark and "No Mid Term Result". Their Final Term result and outcome equal those of an identical student with Mid Term results (control case). No zero or FAIL is ever created for the missing Mid Term.
+- **Report cards and fees (C-36):** a student with unpaid fees receives their report card exactly like everyone else; there is no withholding setting.
 
 ### Phase 7 — Finance & fee management
 
@@ -147,6 +155,12 @@ A phase is complete only when **all** of the following hold:
 - 100 concurrent payment requests produce 100 unique, gapless receipt numbers. An idempotent retry creates no duplicate payment.
 - A voided payment keeps its receipt number, shows VOID, reverses its allocations and income transaction, and is audit-logged with the approver.
 - Teachers cannot access any finance endpoint or financial fields (tests).
+- **Discounts (C-33):** fixed and percentage discounts apply only after School Admin approval; a REQUESTED discount does not change any balance.
+- **Expenses (C-35):** a RECORDED expense does not appear in income/expense or profit/loss reports until a School Admin approves it.
+- **Self-approval (C-28):** a School Admin can approve their own request and the audit log flags it; with `require_second_approver` on, the same approval is rejected.
+- **Arrears and penalties (C-37, C-38):** after rollover, a previous year's unpaid charges remain on that year's enrolment and appear as arrears on the statement; no penalty charge is ever generated.
+- **Receipts (C-39):** A4 by default and half-page on request, bilingual labels, sequential numbers without gaps (see the concurrency test above).
+- **Retries (C-41):** replaying a payment, charge run or import commit with the same idempotency key returns the original result and creates nothing.
 
 ### Phase 8 — Advanced modules
 
@@ -158,6 +172,8 @@ A phase is complete only when **all** of the following hold:
 - Stock on hand equals the sum of movements. An OUT movement exceeding stock is rejected. A low-stock alert fires once per crossing.
 - A student assigned to a route receives transport charges via the fee engine, including FREE students, because transport is not tuition (C-17). Route capacity is enforced.
 - Announcements reach only the targeted roles or users.
+- **Library (C-40):** a user with only the Librarian custom role can manage the catalogue and circulation and nothing outside it.
+- **Notifications (C-46):** no SMS or email is sent; the channel interface has only the in-app implementation.
 
 ### Phase 9 — Excel integration, PDF reports & analytics
 
@@ -179,7 +195,9 @@ A phase is complete only when **all** of the following hold:
 
 **Acceptance criteria**
 
-- Load test meets p95 latency targets at the agreed concurrency.
+- Load test meets p95 latency targets for the capacity target of 100 schools with up to 3,000 students each (C-42), at the working concurrency assumption (Q-M9).
+- Retention (C-44): backup and audit-log retention are configured for 7 years (financial) and 2 years (audit), subject to applicable legal requirements.
+- Hosting (C-47): the selected provider and region suit users in East Africa, and the deployment uses only provider-independent components (02 §10).
 - No high/critical findings open from the security scans.
 - Restore drill completed within RTO; ledger reconciliation passes on the restored data.
 - Production is live with TLS, monitoring, alerts and backups. The School Admin of Gol Khatumo School signs off UAT.
@@ -201,4 +219,4 @@ Durations depend on team size, which has not been confirmed (Q-G7). For a team o
 | 10 | 2–3 weeks |
 | **Total** | **≈ 23–27 weeks** |
 
-Gol Khatumo School can begin a **pilot after Phase 7**, running students, academics and finance in production with real data while Phases 8–10 continue. This requires a Phase 10-lite hardening and backup step before the pilot (see Q-G8).
+Gol Khatumo School can begin a **pilot after Phase 7**, running students, academics and finance in production with real data while Phases 8–10 continue. This is confirmed (C-45) and requires a Phase 10-lite hardening and backup step before the pilot.

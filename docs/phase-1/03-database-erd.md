@@ -69,8 +69,8 @@ erDiagram
     json term_template "initial: Mid Term, Final Term"
     json numbering_formats
     json report_card_options
-    int attendance_edit_window_hours
-    json finance_options
+    string attendance_edit_rule "SAME_DAY_MIDNIGHT (fixed in v1, C-31)"
+    json finance_options "incl. require_second_approver (default false, C-28)"
   }
   USER {
     string id PK
@@ -125,9 +125,10 @@ erDiagram
     string id PK
     string super_admin_id FK
     string school_id FK
-    string reason
-    boolean write_access
-    datetime expires_at
+    string reason "mandatory"
+    datetime started_at
+    datetime expires_at "time-limited (C-25)"
+    datetime ended_at
   }
 ```
 
@@ -580,6 +581,7 @@ Rules:
 - **Grade from exact percentage (C-04):** the overall grade uses the same exact comparison against each band's `min_percent` (`total_score × 100 ≥ min_percent × total_max`). `percentage` is stored for display and reporting only (truncated to 2 decimals, never rounded up) and is never used for decisions.
 - **End-of-year outcome (C-06), automatic:** when the Final Term exam is published, `end_of_year_outcome` is set on each Final Term snapshot: PASS → `PROMOTED`, or `GRADUATED` **only** when the student's grade level has `is_final_grade = true` (C-09); FAIL → `REPEAT_GRADE`. It is copied to `enrollment.outcome` (`outcome_source = AUTOMATIC`, `outcome_snapshot_id`) by the system actor, with an audit entry. No approval step exists, and no API lets a user set or override an automatic outcome. A GRADUATED student gets no next-year enrolment, and their `student.status` becomes `GRADUATED` at rollover.
 - **Final grade configuration (C-09):** `grade_level.is_final_grade` is set explicitly by the School Admin. Constraints: at most one `is_final_grade = true` per school (unique partial index via a generated column); `is_final_grade = true` ⇒ `next_grade_level_id IS NULL`. Publishing a Final Term exam is **rejected** (`GRADE_PROGRESSION_NOT_CONFIGURED`, listing the grade levels) if any grade level in it has `is_final_grade = false` and `next_grade_level_id IS NULL`, and also if the school has no final grade configured. A missing next grade is therefore a configuration error, never a graduation.
+- **Mid Term late joiners (C-23):** an enrolment whose student had **no active enrolment on the first Mid Term paper date** is excluded from the Mid Term mark-entry grid: no `mark` rows (so never ABSENT = 0), no Mid Term `result_snapshot`, no Mid Term rank. The Final Term snapshot and `end_of_year_outcome` are computed exactly as for every other student, from Final Term marks only. The Final Term report card reads the missing Mid Term snapshot as "No Mid Term Result".
 - **Late joiners (C-10):** at Final Term publication, every enrolment of the year whose student had **no active enrolment in the school on the first Final Term paper date** receives `outcome = PENDING_PLACEMENT` and has no Final Term snapshot. Such students are excluded from the Final Term mark-entry grid, so they are never auto-marked ABSENT. Section transfers do not count as late joining. Only the School Admin (`academic.placement.decide`) resolves it: `placement_grade_level_id`, `placement_reason` (mandatory), `placement_decided_by_id` and `placement_decided_at` are written with `outcome_source = ADMIN_PLACEMENT`, together with an audit entry recording the decision, reason, user and date. Rollover creates their next-year enrolment from that decision (or graduates them, if the decision is to graduate from a final grade).
 - **Ranking (C-11):** `rank_in_section` and `rank_in_grade` use standard competition ranking over the exact overall percentage. Two students tie only if `total_score_A × total_max_B = total_score_B × total_max_A`; otherwise the higher exact value ranks first. The rank is 1 + the number of students with a strictly higher value, which gives 1, 2, 2, 4. The same function is used for Mid Term and Final Term and by every ranking report.
 - **Corrections:** an outcome changes only if Final Term marks are corrected through the audited unlock → re-publish flow before rollover commits. After rollover, a correction also moves the next-year enrolment (same grade level ↔ next grade level), audit-logged.
@@ -670,10 +672,11 @@ erDiagram
     string id PK
     string enrollment_id FK
     string fee_category_id FK "nullable = all"
-    string kind "PERCENT|FIXED"
+    string kind "PERCENT|FIXED (C-33)"
     decimal value
     string reason
-    string approved_by_id FK
+    string status "REQUESTED|APPROVED|REJECTED"
+    string approved_by_id FK "required before the discount applies"
   }
   CHARGE_RUN {
     string id PK
@@ -771,6 +774,11 @@ erDiagram
 6. **Immutability:** payments, allocations and charges are never updated in amount or deleted. Corrections use void + re-issue, or adjustments, all audit-logged.
 7. **Receipt numbers** come from `number_sequence` with a row lock, inside the payment transaction: gapless and unique per school per year. A voided payment keeps its number.
 8. **Income posting:** each valid payment creates exactly one `finance_transaction` (INCOME, category STUDENT_FEES). Voiding the payment voids that transaction.
+9. **Expense recognition (C-35):** an EXPENSE `finance_transaction` is created as `RECORDED` and is counted in financial reports only once `status = APPROVED` with `approved_by_id` set by a School Admin.
+10. **Approvals and self-approval (C-28):** discounts, waivers, voids, refunds, expenses and billing-status changes store requester and approver. A School Admin may approve their own request; the audit entry flags it as self-approved. When `finance_options.require_second_approver = true`, the service rejects an approval by the requester.
+11. **Arrears (C-37):** balances are never copied between academic years. A previous year's unpaid charges stay on that year's enrolment and are reported as arrears.
+12. **No late-payment penalties (C-38)** and no automatic charge of any kind is created for late payment.
+13. **Retries (C-41):** `idempotency_key` (unique per school) on payments, charge runs and import commits. A repeated request with the same key returns the original result and writes nothing.
 
 ## 9. Library, inventory & transport
 
@@ -948,8 +956,8 @@ erDiagram
   NUMBER_SEQUENCE {
     string id PK
     string key "RECEIPT|ADMISSION|EMPLOYEE|ACCESSION|REPORT_CARD"
-    string scope "2026 or ALL"
-    string prefix "GK-RCPT-"
+    string scope "year (e.g. 2026) or ALL"
+    string prefix "e.g. GK-RCPT- (receipts), GK- (admission: GK-{YYYY}-{0000}, C-30)"
     int next_value
   }
 ```
@@ -962,11 +970,12 @@ erDiagram
 - Every tenant table: `INDEX (school_id, <most common filter>)`, e.g. `students (school_id, status, first_name)`, `guardians (school_id, phone_primary)`, `fee_charges (school_id, enrollment_id, status)`, `payments (school_id, paid_on)`, `student_attendance (school_id, date)`.
 - Name search: a generated column `search_name` (the four name parts concatenated, lower-cased) with an index, which supports prefix search. FULLTEXT is used only if needed.
 - Reporting queries (outstanding by class, collection by month) use covering indexes. Heavy reports can later read from a replica.
+- Capacity target (C-42): 100 schools with up to 3,000 students each.
 - Expected volume per school per year (3,000 students): attendance ≈ 3,000 × 200 days = 600k rows; marks ≈ 3,000 × 10 subjects × 2 exams (Mid Term, Final Term) = 60k rows; charges ≈ 3,000 × 12 months = 36k rows. Across 100 schools this is comfortable for a single MySQL primary with proper indexing. Attendance is the table to watch; partitioning by year is an option later.
 
 ## 12. Migration & seeding strategy
 
 - `prisma migrate dev` locally; `prisma migrate deploy` in CI/CD. Migrations are committed and code-reviewed, and destructive changes follow expand → migrate → contract.
-- **Seed (all environments):** permission catalogue, system roles with default permissions, system finance categories, and the **official grading scale** (C-03) for each school.
+- **Seed (all environments):** permission catalogue, system roles with default permissions, system finance categories, the **official grading scale** (C-03) for each school, the `TUITION` fee category with `is_tuition = true` (C-17), and number sequences (admission `GK-{YYYY}-{0000}`, receipts, report cards). School-specific data (grade levels, sections, term dates) is entered by the school, not seeded (Q-ST3, Q-AY2).
 - **Seed (dev/staging only):** a demo school with synthetic students, staff and marks, for testing and UAT.
 - **Data migration from existing records:** via the Excel import pipeline (students, guardians, staff, opening balances). No direct SQL loading of production data.

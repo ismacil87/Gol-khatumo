@@ -23,12 +23,12 @@
 | 17 | **Free Student Management** | FEE_PAYING/FREE billing status with approval and history | BillingProfile, BillingStatusHistory | 3 | 7 |
 | 18 | **Outstanding Balances** | Derived balances, fee status, aging, class financial reports | none (read models from ledger) | 15, 16, 17 | 7 |
 | 19 | **Income & Expenses** | Accounts, categories, other income, expenses, approvals, P&L | FinanceAccount, FinanceCategory, FinanceTransaction | 2, 16 | 7 |
-| 20 | **Library** | Catalogue, copies, circulation, overdue, lost-book charges | Book, BookCopy, BookLoan | 3, 5, 15 (charges) | 8 |
+| 20 | **Library** | Catalogue, copies, circulation, overdue, lost-book charges; managed by a Librarian custom role or the School Admin (C-40) | Book, BookCopy, BookLoan | 3, 5, 15 (charges) | 8 |
 | 21 | **Inventory** | Items, stock movements, suppliers, low-stock alerts | InventoryCategory, InventoryItem, StockMovement, Supplier | 2, 19 (optional expense) | 8 |
 | 22 | **Transport** | Vehicles, routes, stops, student assignments, transport fees | Vehicle, TransportRoute, RouteStop, TransportAssignment | 3, 5, 15 | 8 |
-| 23 | **Notifications** | In-app notifications, announcements, channel abstraction | Notification, NotificationRecipient | 25 (users) | 3 (core), events added per phase, 8 (full) |
+| 23 | **Notifications** | In-app notifications, announcements, channel abstraction (no SMS/email provider in v1, C-46) | Notification, NotificationRecipient | 25 (users) | 3 (core), events added per phase, 8 (full) |
 | 24 | **Reports & Analytics** | Report centre, PDF/Excel outputs, charts, analytics | none (read models) | All | 9 (plus per-module reports delivered earlier) |
-| 25 | **User Management & Audit** | Users, roles, permissions, sessions, audit log | User, Role, Permission, UserRole, Session, AuditLog, SupportSession | Platform | 2 (schema), 3 (features) |
+| 25 | **User Management & Audit** | Users, roles and custom roles (Phase 3, C-27), permissions, sessions, two-factor authentication (C-29), read-only support sessions (C-25), audit log | User, Role, Permission, UserRole, Session, AuditLog, SupportSession | Platform | 2 (schema), 3 (features) |
 | — | *Import/Export engine* (cross-cutting) | Templates, validation, preview, error reports, exports | ImportJob, FileObject | 3, 5, 12, 15 | 9 (engine). Phase 4/6/7 include basic export. |
 | — | *PDF engine* (cross-cutting) | Layout kit, templates, rendering worker | — | All reporting modules | 7 (receipt first), 9 (full catalogue) |
 
@@ -108,4 +108,4 @@ stateDiagram-v2
   Closed --> [*]
 ```
 
-**[PROPOSED]** Outstanding balances from a closed year stay on the old enrolment's ledger and appear as "arrears" on the student's statement and in outstanding reports. They are not copied into the new year (Q-F8).
+**Confirmed (C-37):** outstanding balances from a closed year stay on the old enrolment's ledger and appear as "arrears" on the student's statement and in outstanding reports. They are not copied into the new year.

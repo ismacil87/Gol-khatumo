@@ -10,15 +10,16 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 | Password hashing | **Argon2id** (memory 64 MiB, iterations 3, parallelism 1, re-tuned on production hardware to ~250 ms). Rehash on login if parameters change. |
 | Password policy | ≥ 10 characters; checked against a list of common or breached passwords. No forced periodic rotation (NIST SP 800-63B). Must change on first login and after an admin reset. |
 | Brute force | Per-account progressive lockout (5 failures → 15 min lock, then exponential); per-IP rate limit on `/auth/*` (Redis-backed); all failures logged. |
-| Tokens | **Access token:** JWT (EdDSA or HS512), 15-minute lifetime, held in memory only, never in `localStorage`. **Refresh token:** opaque random 256-bit value, stored **hashed** in `sessions`, sent as an `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth` cookie, 7-day sliding / 30-day absolute expiry. |
+| Tokens | **Confirmed (D-07, C-24).** **Access token:** JWT (EdDSA or HS512), 15-minute lifetime, held in memory only, never in `localStorage`. **Refresh token:** opaque random 256-bit value, stored **hashed** in `sessions`, sent as an `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth` cookie, 7-day sliding / 30-day absolute expiry. |
 | Rotation & reuse detection | A new refresh token on every refresh. Reuse of an old token revokes the whole token family (theft detection). |
 | Logout | Revokes the session. "Log out all devices" revokes all of the user's sessions. Deactivating a user revokes all of their sessions. |
-| MFA | **[PROPOSED]** TOTP (RFC 6238) with recovery codes: **mandatory for Super Admin**, optional (school-enforceable) for School Admin and Accountant (Q-S1) |
-| Password reset | v1: School Admin resets a staff password and a temporary password is shown once (staff may not have email). Self-service reset by email/SMS when a provider is configured (Q-N1). Reset tokens are single-use, hashed and expire after 30 minutes. |
+| MFA | **Confirmed (C-29):** TOTP (RFC 6238) with recovery codes: **mandatory for Super Admin**; **optional** for School Admin and Accountant |
+| Password reset | v1: School Admin resets a staff password and a temporary password is shown once (staff may not have email). Self-service reset by email/SMS is not in v1, because there is no email or SMS provider (C-46). Reset tokens are single-use, hashed and expire after 30 minutes. |
 | Super Admin accounts | Created only by CLI/seed or by another Super Admin; MFA required; login alerts. |
 
 ## 2. Authorization & tenant isolation
 
+- **Super Admin support sessions (C-25):** the only way a Super Admin can see a school's data. Time-limited, mandatory reason, **read-only** (write endpoints reject requests made in a support session), every request logged with the session ID, and visible to the school in its audit log.
 - **Confirmed model (D-01, C-21):** all schools share one database; every school-owned record is isolated by `school_id`; School Admins and all other school users access only their own school's data; no school can access another school's records. Isolation is enforced on the server in every layer below; the frontend only hides UI and is never relied on for security.
 - Default deny. Every route declares its permission; services enforce scope (see 04 — Roles & Permissions §6).
 - `school_id` is taken only from the verified token or session; client input is never trusted for it.
@@ -53,7 +54,7 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 | Image sanitisation | Re-encode images with `sharp`: strips EXIF/GPS metadata and embedded payloads, resizes to max dimensions |
 | Storage | Private bucket. Random UUID object keys under `schools/{schoolId}/…`. The original filename is stored only as metadata (sanitised). Never stored under the web root, never executed. |
 | Access | Download via an authorising API endpoint → short-lived signed URL (≤ 5 min) with `Content-Disposition: attachment` for non-images |
-| Malware scanning | **[PROPOSED]** ClamAV sidecar scan before a file is marked available (Phase 10; optional depending on hosting) |
+| Malware scanning | **[PROPOSED] (Q-M6)** ClamAV sidecar scan before a file is marked available (Phase 10; optional depending on hosting) |
 | Spreadsheets | Parsed in the worker; macros (`.xlsm`) rejected; formulas read as cached values; row and column limits; parsing time-out |
 
 ## 6. Secrets & configuration
@@ -73,11 +74,11 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 
 ## 8. Audit logging
 
-**Audited operations (minimum):** login success/failure, logout, password change/reset, MFA changes, user create/deactivate/role change, school create/suspend, support sessions, settings changes, student create/status change/transfer/delete-attempt, guardian contact create/change/replace, guardian contact list exports, billing status changes (including the School Admin's KEEP/WAIVE decision on existing unpaid charges with reason, user and date, C-18), charge generation runs, waivers, discounts, payment create/void/refund, expense approve/void, exam lock/publish/unlock, automatic end-of-year outcomes (system actor), placement decisions for PENDING PLACEMENT late joiners (decision, reason, user, date), graduations, result re-publication (including changes to ABSENT statuses), mark changes after lock, attendance edits after lock, imports committed, bulk exports of personal data, permission-denied events (sampled).
+**Audited operations (minimum):** login success/failure, logout, password change/reset, MFA changes, user create/deactivate/role change, school create/suspend, support sessions (start, every action, end; C-25), self-approvals (C-28), discount approvals, expense approvals, settings changes, student create/status change/transfer/delete-attempt, guardian contact create/change/replace, guardian contact list exports, billing status changes (including the School Admin's KEEP/WAIVE decision on existing unpaid charges with reason, user and date, C-18), charge generation runs, waivers, discounts, payment create/void/refund, expense approve/void, exam lock/publish/unlock, automatic end-of-year outcomes (system actor), placement decisions for PENDING PLACEMENT late joiners (decision, reason, user, date), graduations, result re-publication (including changes to ABSENT statuses), mark changes after lock, attendance edits after lock, imports committed, bulk exports of personal data, permission-denied events (sampled).
 
 **Record contents:** actor, role, school, support session (if any), action, entity, before/after (redacted), reason, IP, user agent, request ID, timestamp.
 
-**Integrity:** append-only (DB grants: INSERT/SELECT only); written in the same transaction as the business change; **[PROPOSED]** daily hash chain (each day's digest includes the previous one) for tamper evidence, Phase 10. Retention ≥ 2 years (Q-G5).
+**Integrity:** append-only (DB grants: INSERT/SELECT only); written in the same transaction as the business change; **[PROPOSED] (Q-M7)** daily hash chain (each day's digest includes the previous one) for tamper evidence, Phase 10. Retention 2 years, subject to applicable legal requirements (C-44).
 
 ## 9. Backup & recovery strategy
 
@@ -85,7 +86,7 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 |------|----------|
 | Database (primary) | Managed MySQL automated daily snapshots + **binary log based point-in-time recovery** (PITR). **RPO ≤ 15 min** (typically ≤ 5 min). |
 | Database (independent copy) | Nightly encrypted logical dump (`mysqldump --single-transaction` or `mydumper`), copied to a **separate account/region** bucket with object lock (immutability). Protects against provider, account or ransomware incidents. |
-| Retention | Daily for 35 days, weekly for 12 weeks, monthly for 12 months; year-end snapshot kept 7 years **[PROPOSED]** (Q-G5) |
+| Retention | Daily for 35 days, weekly for 12 weeks, monthly for 12 months; year-end snapshot kept 7 years, matching the financial-records retention (C-44) |
 | Object storage | Versioning enabled; lifecycle rules; replication to the backup location |
 | Redis | Not a system of record. Queued jobs can be re-created; no backup needed beyond provider persistence. |
 | Configuration | Infrastructure as code and secrets manager (versioned) |
@@ -99,5 +100,6 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 - CI: `pnpm audit` / dependency review, static analysis (ESLint security rules, TypeScript strict), secret scanning, container image scan (Trivy or equivalent), SBOM generation.
 - Dependabot/Renovate for dependency updates.
 - Tenant isolation suite and authorization tests block merges.
+- Retry safety (C-41): idempotency keys on payments, charge runs and import commits; tests prove a replayed request creates nothing new.
 - Pre-release: OWASP ZAP baseline scan on staging (Phase 10); external penetration test recommended before onboarding a second school.
 - Incident response plan: detection (alerts), containment (revoke sessions, rotate keys), notification to affected schools, post-mortem.

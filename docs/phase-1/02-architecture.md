@@ -13,14 +13,14 @@ Why not microservices: one team, one database, strong transactional needs (finan
 | Runtime | Node.js 22 LTS | Active LTS at project start |
 | Language | TypeScript 5.x, `strict: true` | Shared across all packages |
 | API framework | Express.js 5 | Approved |
-| Validation | Zod | Schemas live in `packages/shared` and are used by both API and web forms. OpenAPI is generated from them. |
+| Validation | Zod | **Confirmed (D-09, C-24).** Schemas live in `packages/shared` and are used by both API and web forms. OpenAPI is generated from them. |
 | ORM / migrations | Prisma (MySQL provider) | Approved. `prisma migrate` for versioned migrations. |
 | Database | MySQL 8.0+ (InnoDB, `utf8mb4`, `utf8mb4_0900_ai_ci`) | Approved |
-| Cache / queue | Redis 7 + BullMQ | **[PROPOSED]** For PDF batches, imports, notifications, rate limiting (D-04) |
+| Cache / queue | Redis 7 + BullMQ | **Confirmed (D-04, C-24).** For PDF batches, imports, notifications, rate limiting |
 | Object storage | S3-compatible API (MinIO for local development) | Logos, photos, documents, generated PDFs, import files. Works with AWS S3, GCS (interop), Azure (via gateway), Cloudflare R2, DigitalOcean Spaces, etc. |
 | Password hashing | Argon2id (`argon2` package) | See 06 — Security |
-| PDF | HTML/CSS templates → headless Chromium (Playwright) | **[PROPOSED]** (D-05) |
-| Excel | SheetJS CE (parse .xlsx/.xls/.csv) + ExcelJS (styled .xlsx output) | **[PROPOSED]** (D-06) |
+| PDF | HTML/CSS templates → headless Chromium (Playwright) | **Confirmed (D-05, C-24)** |
+| Excel | SheetJS CE (parse .xlsx/.xls/.csv) + ExcelJS (styled .xlsx output) | **Confirmed (D-06, C-24)** |
 | Frontend build | Vite | |
 | UI | React 19 + TypeScript + Tailwind CSS 4 | Approved |
 | Routing | React Router | |
@@ -29,10 +29,10 @@ Why not microservices: one team, one database, strong transactional needs (finan
 | Tables | TanStack Table | Headless, accessible markup under our control |
 | Charts | Recharts (web); server-rendered SVG in PDFs | |
 | i18n | i18next + react-i18next (web), shared message catalogues for API errors and PDFs | |
-| UI primitives | Radix UI primitives styled with Tailwind | Accessible dialogs, menus, popovers without a heavy component library |
+| UI primitives | Radix UI primitives styled with Tailwind | **Confirmed (D-08, C-24).** Accessible dialogs, menus, popovers without a heavy component library |
 | Testing | Vitest (unit), Supertest + Testcontainers MySQL (API integration), Playwright (E2E) | |
 | Logging / metrics | Pino (JSON logs), OpenTelemetry-compatible metrics and traces | Provider-neutral |
-| Package manager | pnpm workspaces | **[PROPOSED]** (D-02) |
+| Package manager | pnpm workspaces (one code repository) | **Confirmed (D-02, C-24)** |
 | CI | GitHub Actions | Lint, typecheck, test, build, migration check, dependency audit |
 | Containers | Docker (multi-stage builds) | Same images in every environment |
 
@@ -113,7 +113,7 @@ apps/api/src/modules/students/
 
 Rules: controllers never call Prisma directly. Services never import another module's repository; they call that module's service. All cross-cutting code (auth, tenancy, audit, errors, pagination) lives in `apps/api/src/core`.
 
-## 4. Repository structure (monorepo) **[PROPOSED]**
+## 4. Repository structure (monorepo, confirmed D-02 / C-24)
 
 ```text
 gol-khatumo/
@@ -243,7 +243,7 @@ Also:
 
 - Platform tables (`schools`, `platform_settings`, `permissions`, system role templates) have no `school_id`.
 - Users carry a `school_id`, which is `NULL` only for platform users (Super Admins).
-- **Super Admin support mode [PROPOSED]:** a Super Admin cannot browse school data by default. To troubleshoot, they start a time-limited (e.g. 60 minutes) **support session** for one school with a stated reason. It is read-only by default and audit-logged, and is visible to that school's admins in the audit log (Q-P1).
+- **Super Admin support mode (confirmed, C-25):** a Super Admin cannot browse school data. To troubleshoot, they start a **time-limited** **support session** for one school with a stated reason (default duration: Q-M10). It is **read-only** (no write access to school data in v1), every action is **logged**, and the session is **visible to that school** in its audit log.
 
 ### 6.4 Tenant resolution
 
@@ -301,7 +301,7 @@ Design points:
 
 ## 8. PDF architecture
 
-### 8.1 Engine choice **[PROPOSED] (D-05)**
+### 8.1 Engine choice (confirmed D-05 / C-24)
 
 | Option | Pros | Cons |
 |--------|------|------|
@@ -337,11 +337,11 @@ Receipt · Student fee statement · Outstanding balances by class · Class finan
 
 - **UI strings:** i18next JSON namespaces per feature in `apps/web/src/locales/{so,en}`. Missing keys fail CI. Somali translations are reviewed by a native speaker (Q-G6).
 - **API messages:** error responses carry a stable `code` and a localized `message` resolved from `Accept-Language`, falling back to the school default.
-- **Data in two languages:** reference data that appears on official documents (school name, term labels, subject names, fee categories, grade remarks) has `name_so` and `name_en` columns. The term labels are seeded as the official **"Mid Term"** and **"Final Term"** in both columns until the school confirms Somali wording (Q-AY1). Personal names are stored as entered (single value).
+- **Data in two languages:** reference data that appears on official documents (school name, term labels, subject names, fee categories, grade remarks) has `name_so` and `name_en` columns. The term labels are seeded as the official **"Mid Term"** and **"Final Term"** in both columns until the school confirms Somali wording (C-32). Personal names are stored as entered (single value).
 - **Formatting:** dates use `DD/MM/YYYY` by default (configurable). Numbers and currency are formatted via `Intl` with explicit settings (Somali locale data in browsers is incomplete, so the formats are pinned, not left to the browser). Amount in words is implemented for both languages.
 - **User preference:** stored per user, switchable from the top bar, applied immediately without a reload.
 
-## 10. Cloud deployment strategy (provider-independent)
+## 10. Cloud deployment strategy (provider-independent, C-47)
 
 ### 10.1 Principles
 
@@ -349,6 +349,7 @@ Receipt · Student fee statement · Outstanding balances by class · Class finan
 - Only **commodity managed services** are needed, and every major cloud has them: managed MySQL 8, managed Redis, S3-compatible object storage, a container runtime, a load balancer with TLS, and a secrets store.
 - Configuration comes only from environment variables and secrets injection (twelve-factor).
 - Infrastructure as code (Terraform/OpenTofu) is written once a provider is selected, in Phase 10.
+- **Hosting region (C-47):** the region is chosen to suit users in East Africa (low latency from Somalia/Somaliland). The provider and exact region are selected in Phase 10; nothing in the code depends on them.
 
 ### 10.2 Environments
 
