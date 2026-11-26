@@ -18,6 +18,8 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 | Super Admin accounts | Created only by CLI/seed or by another Super Admin; MFA required; login alerts. |
 
 ## 2. Authorization & tenant isolation
+
+- **Confirmed model (D-01, C-21):** all schools share one database; every school-owned record is isolated by `school_id`; School Admins and all other school users access only their own school's data; no school can access another school's records. Isolation is enforced on the server in every layer below; the frontend only hides UI and is never relied on for security.
 - Default deny. Every route declares its permission; services enforce scope (see 04 — Roles & Permissions §6).
 - `school_id` is taken only from the verified token or session; client input is never trusted for it.
 - Isolation layers: schema, composite FKs, Prisma tenant extension, authorization and automated tests (see 02 — Architecture §6).
@@ -25,13 +27,15 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 - Mass assignment protection: Zod schemas are strict (unknown keys rejected). DTOs are allow-listed. `schoolId`, `status`, `createdBy` and similar fields are never accepted from the client unless a specific endpoint is meant to change them.
 
 ## 3. Input validation & output encoding
+
 - **Server-side validation of every input** with Zod (type, length, format, range, enum). Client-side validation is for usability only.
-- **SQL injection:** Prisma parameterised queries only. Raw SQL is restricted to a reviewed folder with tagged templates (`$queryRaw\`…\``), and `$queryRawUnsafe` is banned by lint rule.
+- **SQL injection:** Prisma parameterised queries only. Raw SQL is restricted to a reviewed folder with tagged templates (``$queryRaw`…` ``), and `$queryRawUnsafe` is banned by lint rule.
 - **XSS:** React escapes by default. `dangerouslySetInnerHTML` is banned by lint rule. PDF templates use an auto-escaping engine. Strict CSP (below).
 - **CSV/Excel formula injection:** exported cells beginning with `= + - @ \t \r` are prefixed with `'`.
 - **Request limits:** JSON body ≤ 1 MB, uploads ≤ configured size, query complexity bounded (page size ≤ 100, sort/filter allow-lists).
 
 ## 4. HTTP security
+
 - TLS 1.2+ only, HSTS (`max-age=31536000; includeSubDomains`), HTTP → HTTPS redirect.
 - `helmet` headers: `Content-Security-Policy` (`default-src 'self'; script-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'`; `img-src 'self' blob: data:` and the storage origin), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` minimal.
 - **CORS:** allow-list of the web app origin(s) only, with credentials.
@@ -40,6 +44,7 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 - Errors never leak stack traces, SQL or internal IDs in production.
 
 ## 5. Secure file uploads
+
 | Control | Design |
 |---------|--------|
 | Allow-list | Images (`jpg`, `png`, `webp`) for photos and logos; `pdf` for documents; `xlsx`, `xls`, `csv` for imports. Anything else is rejected. |
@@ -52,12 +57,14 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 | Spreadsheets | Parsed in the worker; macros (`.xlsm`) rejected; formulas read as cached values; row and column limits; parsing time-out |
 
 ## 6. Secrets & configuration
+
 - All secrets (DB URL, JWT keys, storage keys, SMTP/SMS keys) come from environment variables injected by the platform secret manager. `.env` exists for local development only, is git-ignored, and `.env.example` documents the variables without values.
 - The frontend bundle contains **only** public configuration (API base URL, build version). CI fails if known secret patterns appear in the `web` build output or the repository (secret scanning).
 - JWT signing keys are rotatable (a `kid` header; two active keys during rotation).
 - Field-level encryption (AES-256-GCM, key from the secret manager) for MFA secrets and optionally national ID numbers.
 
 ## 7. Data protection & privacy
+
 - Data minimisation: collect only fields needed for school operations. Medical notes and staff sensitive data are behind dedicated permissions.
 - Encryption at rest: managed database, backups and object storage encrypted with provider-managed or customer-managed keys.
 - Logs scrub PII (passwords, tokens, phone numbers partially masked).
@@ -65,6 +72,7 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 - Per-school data export, and a documented deletion procedure on offboarding.
 
 ## 8. Audit logging
+
 **Audited operations (minimum):** login success/failure, logout, password change/reset, MFA changes, user create/deactivate/role change, school create/suspend, support sessions, settings changes, student create/status change/transfer/delete-attempt, guardian contact create/change/replace, guardian contact list exports, billing status changes (including the School Admin's KEEP/WAIVE decision on existing unpaid charges with reason, user and date, C-18), charge generation runs, waivers, discounts, payment create/void/refund, expense approve/void, exam lock/publish/unlock, automatic end-of-year outcomes (system actor), placement decisions for PENDING PLACEMENT late joiners (decision, reason, user, date), graduations, result re-publication (including changes to ABSENT statuses), mark changes after lock, attendance edits after lock, imports committed, bulk exports of personal data, permission-denied events (sampled).
 
 **Record contents:** actor, role, school, support session (if any), action, entity, before/after (redacted), reason, IP, user agent, request ID, timestamp.
@@ -86,6 +94,7 @@ Target baseline: **OWASP ASVS 4.0 Level 2** and the **OWASP Top 10 (2021)**. Sec
 | Runbooks | Documented in `docs/runbooks/` in Phase 10: restore, PITR, key rotation, incident response, school offboarding |
 
 ## 10. Secure development lifecycle
+
 - Pull request reviews required; a security checklist in the PR template.
 - CI: `pnpm audit` / dependency review, static analysis (ESLint security rules, TypeScript strict), secret scanning, container image scan (Trivy or equivalent), SBOM generation.
 - Dependabot/Renovate for dependency updates.

@@ -86,6 +86,7 @@ flowchart LR
 ```
 
 ### 3.1 Request lifecycle (API)
+
 1. **Edge:** TLS, request size limits, security headers.
 2. **Request context:** generate a `requestId`; start an `AsyncLocalStorage` context.
 3. **Authentication:** verify the access token (JWT). Load `userId`, `schoolId`, role and permission version.
@@ -98,7 +99,8 @@ flowchart LR
 10. **Response:** a consistent JSON envelope, or an RFC 9457 problem-details error. Errors are localized via message keys.
 
 ### 3.2 Backend module layout (per module)
-```
+
+```text
 apps/api/src/modules/students/
   students.routes.ts        # Express router: paths, permission guards, validation
   students.controller.ts    # HTTP ↔ service mapping only
@@ -108,11 +110,12 @@ apps/api/src/modules/students/
   students.mapper.ts        # DB model → API DTO (strips internal fields)
   __tests__/                # unit + integration tests
 ```
+
 Rules: controllers never call Prisma directly. Services never import another module's repository; they call that module's service. All cross-cutting code (auth, tenancy, audit, errors, pagination) lives in `apps/api/src/core`.
 
 ## 4. Repository structure (monorepo) **[PROPOSED]**
 
-```
+```text
 gol-khatumo/
 ├─ apps/
 │  ├─ api/                     # Express REST API (+ worker entry point)
@@ -169,7 +172,7 @@ The brief's "separate frontend, backend, database and shared types" maps to `app
 
 Indicative endpoint groups (full catalogue produced in Phase 2 and extended per phase):
 
-```
+```text
 POST   /api/v1/auth/login | /auth/refresh | /auth/logout | /auth/change-password
 GET    /api/v1/me                                  (profile, permissions, school, language)
 ---- platform (Super Admin) ----
@@ -207,15 +210,19 @@ GET            /jobs/{id}   GET /health  GET /ready
 ## 6. Multi-school tenancy strategy
 
 ### 6.1 Options considered
+
 | Model | Isolation | Cost / ops | Cross-school admin | Verdict |
 |-------|-----------|-----------|--------------------|---------|
 | A. Database per school | Strongest | High: N databases, N migrations, N backups | Hard | Overkill at this scale |
 | B. Schema per school | Strong | Medium–high. In MySQL a schema is a database, so the same problems as A. | Hard | Rejected |
-| **C. Shared database, `school_id` discriminator** | Good when enforced in layers | Low: one schema, one migration path | Easy | **[PROPOSED] (D-01)** |
+| **C. Shared database, `school_id` discriminator** | Good when enforced in layers | Low: one schema, one migration path | Easy | **CONFIRMED (D-01, C-21)** |
+
+**Decision (confirmed by the project owner, C-21):** model C. Multiple schools share one database; every school's records are strictly isolated by `school_id`; School Admins and all other school users can access only their own school's data; no school can access another school's records; isolation is enforced server-side in the layers below, never only in the frontend; the Platform Super Admin manages the platform according to the approved permissions model (04 — Roles & Permissions).
 
 Model C is the standard choice for SaaS at this scale. Its risk is a developer forgetting a filter. The mitigation is to make forgetting impossible or detectable, in five layers.
 
 ### 6.2 Isolation layers (defence in depth)
+
 1. **Schema:** every school-owned table has `school_id CHAR(36) NOT NULL`, indexed as the leading column of its composite indexes. Natural keys are unique per school, e.g. `UNIQUE (school_id, admission_no)`.
 2. **Database referential integrity:** important child tables reference their parents with **composite foreign keys `(school_id, parent_id)` → parent `(school_id, id)`**. The database itself then rejects, for example, a mark whose student belongs to another school, even if application code has a bug. (Prisma supports relations on compound unique keys. This is confirmed in a Phase 2 spike.)
 3. **Tenant-scoped data access:** repositories receive a Prisma client wrapped by a **Prisma Client extension** that reads `schoolId` from the request context (`AsyncLocalStorage`) and
@@ -227,19 +234,23 @@ Model C is the standard choice for SaaS at this scale. Its risk is a developer f
 5. **Tests:** an automated isolation suite seeds two schools and, for every registered route, asserts that a user of school A gets 404 or an empty list for school B's resources. A new route without isolation coverage fails CI.
 
 Also:
+
 - **Object storage:** keys are prefixed `schools/{schoolId}/{category}/{uuid}.{ext}`. Downloads go through an API endpoint that authorises first and then issues a signed URL valid for 5 minutes.
 - **Cache and queue:** Redis keys and job payloads always include `schoolId`. Workers re-establish the tenant context from the job before touching data.
 - **Logs:** every log line carries `schoolId` and `requestId`, for forensics.
 
 ### 6.3 Platform scope vs school scope
+
 - Platform tables (`schools`, `platform_settings`, `permissions`, system role templates) have no `school_id`.
 - Users carry a `school_id`, which is `NULL` only for platform users (Super Admins).
 - **Super Admin support mode [PROPOSED]:** a Super Admin cannot browse school data by default. To troubleshoot, they start a time-limited (e.g. 60 minutes) **support session** for one school with a stated reason. It is read-only by default and audit-logged, and is visible to that school's admins in the audit log (Q-P1).
 
 ### 6.4 Tenant resolution
+
 The tenant comes from the authenticated user (JWT claim `sid`, cross-checked against the database on refresh). Subdomains per school (`golkhatumo.gksms.app`) are optional branding for later. They would preselect the school's logo on the login page but are never trusted for authorization.
 
 ### 6.5 Growth path
+
 If one school grows very large, or a school needs contractual data residency, the same schema can be deployed as a dedicated database for that school, with a tenant → connection routing table. The schema is designed so that this needs no data-model changes.
 
 ## 7. Excel architecture
@@ -279,6 +290,7 @@ sequenceDiagram
 ```
 
 Design points:
+
 - **Template registry:** each import type (students, guardians, staff, fee structures, opening balances, exam marks) is declared once: columns, localized header names (Somali/English, both accepted on upload), Zod row schema, reference resolvers (e.g. section name → section ID) and a duplicate key. Templates, validation, preview and error reports are all generated from that single definition, which avoids duplicated code.
 - **Student template:** the columns are specified in FR-XLS-10: four mandatory name parts (C-12) and mandatory parent/guardian full name and phone (C-13), validated like the registration form.
 - **Parsing:** SheetJS reads `.xlsx`, `.xls` and `.csv`. Header row detection matches Somali or English headers case-insensitively. Dates are normalized from Excel serial numbers and text formats. Phone numbers are normalized to E.164 (e.g. `+252…`).
@@ -290,6 +302,7 @@ Design points:
 ## 8. PDF architecture
 
 ### 8.1 Engine choice **[PROPOSED] (D-05)**
+
 | Option | Pros | Cons |
 |--------|------|------|
 | **HTML/CSS → headless Chromium (Playwright)** | Pixel-precise professional layouts, CSS paged media (`@page`, running headers, page counters), SVG charts, easy bilingual typography, same skills as the frontend | Heavier container (~400 MB). Needs a worker pool. |
@@ -299,22 +312,25 @@ Design points:
 Recommendation: **Chromium rendering in the worker tier.** Single small documents (a receipt) can be rendered synchronously by a warm worker browser through the queue with a short timeout, so the API containers stay light.
 
 ### 8.2 Pipeline
-```
+
+```text
 Report request → permission check → data query (tenant-scoped, read-only)
   → view model (localized labels, formatted numbers/dates/currency, amount-in-words)
   → HTML template (shared layout: header/footer/signatures) + embedded fonts + inline SVG charts
   → Chromium page.pdf({ format: 'A4', printBackground: true, displayHeaderFooter, margins })
   → stream to client (single doc)  OR  store in object storage + job result (bulk / merged)
 ```
+
 - **Layout kit:** reusable partials for the school header (logo, bilingual name, address, phone, email, registration number), report title block (title, academic year, term label "Mid Term" or "Final Term" where the report is term-based, filters applied, generated on/by), data tables (repeated `<thead>` on each page, zebra rows, totals row), KPI summary, chart slot, signature block (prepared by / checked by / principal, plus stamp), and footer ("Page X of Y", document code, generation timestamp).
 - **Fonts:** open-licence fonts with full Latin Extended coverage (e.g. **Noto Sans** for body, **Noto Serif** optional for headings), bundled in the image and embedded in the PDF, so nothing depends on fonts installed on the server.
 - **Charts:** rendered server-side to SVG (the same chart specs as the web app, using a small SVG chart helper). No client-side JavaScript runs in the PDF.
 - **Preview / download / print:** the web app fetches the PDF as a blob and shows it in an `<iframe>` viewer (desktop) or opens it in the device's native viewer (mobile), with buttons for **Download** (`Content-Disposition: attachment`) and **Print** (iframe `print()`).
 - **Security:** templates are rendered with auto-escaping. Chromium runs with no network access (requests are intercepted; only embedded `data:` assets are allowed), JavaScript disabled for template content, and a per-render timeout.
 - **Bulk:** batch report cards are processed in chunks, merged into one PDF (`pdf-lib`) or zipped per student, stored for 7 days, then deleted.
-- **Official documents:** receipts and report cards can embed a verification code and QR (FR-PDF-07, could-have).
+- **Official documents:** report cards print a unique document number (C-20). A verification code and QR (FR-PDF-07) are deferred to a future release; the templates reserve footer space for them.
 
 ### 8.3 Standard PDF catalogue (v1)
+
 Receipt · Student fee statement · Outstanding balances by class · Class financial summary · Free student register · Daily cash report · Income/expense report · Mid Term report card · Final Term report card (Mid Term and Final Term shown separately, no combined result) · Mark sheet / broadsheet (per term) · Ranking list (Mid Term / Final Term) · Section roster · Parent/guardian contact list · Attendance register (monthly) and term attendance summary · Staff attendance report · Timetable (section/teacher) · Exam schedule (per term) · Library overdue list · Inventory stock report · Transport route roster · Student profile.
 
 ## 9. Localization (Somali / English)
@@ -328,12 +344,14 @@ Receipt · Student fee statement · Outstanding balances by class · Class finan
 ## 10. Cloud deployment strategy (provider-independent)
 
 ### 10.1 Principles
+
 - Everything runs as **OCI containers**: `api`, `worker`, `web` (static files served by nginx or a CDN).
 - Only **commodity managed services** are needed, and every major cloud has them: managed MySQL 8, managed Redis, S3-compatible object storage, a container runtime, a load balancer with TLS, and a secrets store.
 - Configuration comes only from environment variables and secrets injection (twelve-factor).
 - Infrastructure as code (Terraform/OpenTofu) is written once a provider is selected, in Phase 10.
 
 ### 10.2 Environments
+
 | Environment | Purpose | Data |
 |-------------|---------|------|
 | Local | Developer machines via `docker compose` (MySQL, Redis, MinIO, Mailpit) | Seeded demo data |
@@ -342,6 +360,7 @@ Receipt · Student fee statement · Outstanding balances by class · Class finan
 | Production | Live | Real |
 
 ### 10.3 Production topology (initial)
+
 ```mermaid
 flowchart TB
   Internet((Internet)) --> LB[Load balancer + TLS<br/>WAF/rate limiting if available]
@@ -360,10 +379,12 @@ flowchart TB
 Indicative sizing at launch (1–10 schools): 2 × API (1 vCPU / 1 GB), 1 × worker (2 vCPU / 2 GB), MySQL 2 vCPU / 4 GB with HA standby, small Redis. Scale API and worker replicas horizontally on CPU and queue depth.
 
 ### 10.4 Release process
+
 - Trunk-based development with short-lived feature branches and pull requests. CI must be green and a review approved before merge.
 - CI pipeline: install → lint → typecheck → unit tests → integration tests (MySQL container) → E2E smoke → build images → vulnerability scan → push to registry.
 - Deploys: staging automatically on merge, production by manual approval. Database migrations run as a separate pre-deploy job (`prisma migrate deploy`) and must be **backward compatible** (expand → migrate → contract) so rolling deploys never break.
 - Rollback: redeploy the previous image. Migrations are additive within a release, so no down-migration is needed for rollback.
 
 ### 10.5 Observability
+
 Structured logs to the provider's log service, metrics (request rate, latency, errors, queue depth, job failures, DB connections), uptime checks on `/health` and `/ready`, and alerts to the operations contact. Error tracking (e.g. self-hosted or SaaS Sentry-compatible) with PII scrubbing.

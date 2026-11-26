@@ -2,7 +2,7 @@
 
 **Project:** Gol Khatumo School Management System (GKSMS)
 **Phase:** 1 of 10 — requirements analysis, system architecture, database ERD, permissions, module relationships and technical specifications
-**Status:** DRAFT. Awaiting stakeholder approval. No application code is written until this phase is approved.
+**Status:** FINAL DRAFT for approval. All critical decisions are confirmed (C-01 to C-22); the remaining open questions have proposed defaults. No application code is written until the project owner approves Phase 1 and authorises Phase 2.
 **Date:** 2026-11-23
 
 ---
@@ -19,14 +19,14 @@
 | 06 | [Security Strategy](06-security.md) | Authentication, authorization, OWASP controls, file uploads, secrets, audit logging, backup and recovery |
 | 07 | [Milestones & Acceptance Criteria](07-milestones.md) | Phase 2–10 deliverables, definition of done, acceptance criteria |
 | 08 | [Risks, Decisions & Open Questions](08-open-questions.md) | Technical decisions that need approval, business rules that need confirmation, gaps, risks |
-| 09 | [Report Card Layout (proposal)](09-report-card-layout.md) | Proposed standard Mid Term and Final Term report card layout. **Pending approval (Q-E6)** |
+| 09 | [Report Card Layout](09-report-card-layout.md) | Mid Term and Final Term report card layout. **Confirmed (C-20)** |
 
 ## Approved baseline (from the project brief)
 
 | Area | Decision |
 |------|----------|
 | First school | Gol Khatumo School |
-| Tenancy | Multi-school (multi-tenant) |
+| Tenancy | Multi-school (multi-tenant): one shared database, every record isolated by `school_id`, isolation enforced server-side in five layers; no school can access another school's records (confirmed, D-01 / C-21) |
 | Hosting | Cloud, provider-independent until a provider is chosen |
 | Languages | Somali and English, with a language switcher |
 | Academic structure | Two **terms** per academic year (not semesters): **Mid Term** and **Final Term** (confirmed, C-01) |
@@ -43,6 +43,8 @@
 | Currency | USD only in the initial release (confirmed, C-16) |
 | FREE students | Exempt from tuition fees only; other configured charges (books, uniforms, transport, …) may apply (confirmed, C-17). Becoming FREE mid-year: the School Admin decides KEEP or WAIVE for existing unpaid charges, audit-logged; future tuition stops (confirmed, C-18) |
 | Fee frequencies | MONTHLY, TERMLY, ONE_TIME; no ANNUAL (confirmed, C-19) |
+| FREE fee status | FREE always displayed; other charges keep their own PAID / PARTIAL / UNPAID / CREDIT status; FREE never waives them (confirmed, C-22) |
+| Report card | One-page A4, bilingual (Somali first), no photo, no guardian contact, Mid Term column "Reference Only – Not Combined", section and grade rank, parent signature, document number; QR deferred (confirmed, C-20) |
 | Roles | Platform Super Admin, School Admin, Principal, Accountant, Teacher |
 | Backend | Node.js + Express.js + TypeScript |
 | Frontend | React + TypeScript + Tailwind CSS |
@@ -52,9 +54,9 @@
 
 ## Decisions in this document that need your approval
 
-The documents use proposed defaults where the brief leaves something open. Each one is marked **[PROPOSED]** where it appears and is listed with its number in [08 — Open Questions](08-open-questions.md). Confirmed decisions are listed as C-01 to C-19 in 08 §0. The ones that most affect Phase 2:
+The documents use proposed defaults where the brief leaves something open. Each one is marked **[PROPOSED]** where it appears and is listed with its number in [08 — Open Questions](08-open-questions.md). Confirmed decisions are listed as C-01 to C-22 in 08 §0. The ones that most affect Phase 2:
 
-1. **Tenancy model:** one shared database and schema, a `school_id` column on every school-owned table, and isolation enforced in five layers: schema, composite foreign keys, a Prisma tenant extension, authorization checks and automated tests (02 — Architecture §6.2).
+1. **Tenancy model (confirmed, D-01 / C-21):** one shared database and schema, a `school_id` column on every school-owned table, and isolation enforced in five layers: schema, composite foreign keys, a Prisma tenant extension, authorization checks and automated tests (02 — Architecture §6.2).
 2. **Monorepo:** pnpm workspaces with `apps/api`, `apps/web` and `packages/shared`.
 3. **PDF engine:** HTML/CSS templates rendered to PDF by headless Chromium in a background worker.
 4. **Background jobs:** Redis + BullMQ for PDF batches, imports and notifications.
@@ -63,4 +65,4 @@ The documents use proposed defaults where the brief leaves something open. Each 
 
 ## Next step
 
-Review the nine documents, answer the remaining open questions in [08 — Open Questions](08-open-questions.md) (every one has a proposed default you can accept), including the nine report card design choices of Q-E6 in [09 §6](09-report-card-layout.md#6-design-questions-for-the-project-owner-q-e6), and approve Phase 1. Phase 2 (project setup, database schema and backend foundation) starts only after that.
+Review the nine documents, answer the remaining open questions in [08 — Open Questions](08-open-questions.md) (every one has a proposed default you can accept), and approve Phase 1. Phase 2 (project setup, database schema and backend foundation) starts only after that.

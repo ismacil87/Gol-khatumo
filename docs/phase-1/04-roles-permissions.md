@@ -4,7 +4,7 @@
 
 GKSMS uses **role-based access control with granular permissions, plus data-scope rules**:
 
-```
+```text
 User ──< UserRole >── Role ──< RolePermission >── Permission ("module.action")
                                          +
                      Scope rules evaluated in services (tenant, assignment, ownership)
@@ -12,6 +12,7 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
 
 - **Permission** = `module.action`, e.g. `students.read`, `marks.enter`, `payments.void`. The catalogue is defined in code (`packages/shared/permissions.ts`), seeded into the database and versioned with the application.
 - **Role** = a named set of permissions. The five **system roles** are seeded and cannot be deleted, and their permissions cannot be changed by schools. **[PROPOSED]** Schools may create **custom roles** (e.g. Librarian, Receptionist, Deputy Principal) from the permission catalogue, but cannot grant platform permissions (Q-R1).
+- **School boundary (D-01, confirmed as C-21):** every school user (School Admin, Principal, Accountant, Teacher and custom roles) belongs to exactly one school and can reach only that school's records. No permission, role or scope gives a school user access to another school. The Platform Super Admin manages the platform (schools, platform users, settings, platform audit) with the `PLATFORM` scope described below; access to a school's own data follows the support-session rule (Q-P1).
 - **Scope** = which records within a granted permission a user can reach. It is enforced in services, not only in the UI:
   - `TENANT`: all records of the user's school (default for school roles).
   - `ASSIGNED`: only sections/subjects linked through `teaching_assignment` or `section.class_teacher_id` (Teacher).
@@ -50,7 +51,7 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
 | Marks/results | `marks.read`, `marks.enter`, `marks.import`, `results.read`, `rankings.read`, `results.annual_policy.manage` (reserved for the future annual result policy, School Admin only, inactive in v1) |
 | Report cards | `report_cards.generate`, `report_cards.remarks.manage` |
 | Fees | `fees.structures.read`, `fees.structures.manage`, `fees.charges.generate`, `fees.charges.adhoc`, `fees.charges.waive.request`, `fees.charges.waive.approve`, `fees.discounts.manage` |
-| Free students | `billing.status.read`, `billing.status.request`, `billing.status.approve` (School Admin; includes the KEEP/WAIVE decision on existing unpaid charges, C-18) |
+| Free students | `billing.status.read` (FREE status and, with `balances.read`, the fee status of non-tuition charges, C-22), `billing.status.request`, `billing.status.approve` (School Admin; includes the KEEP/WAIVE decision on existing unpaid charges, C-18) |
 | Payments | `payments.read`, `payments.create`, `payments.void.request`, `payments.void.approve`, `payments.refund` |
 | Balances | `balances.read` |
 | Income/expenses | `finance.read`, `finance.record`, `finance.approve`, `finance.accounts.manage` |
@@ -145,6 +146,7 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 **[PROPOSED]** A School Admin can approve their own requests, because small schools may have only one admin; the audit log shows this. This is configurable per school (Q-R2).
 
 ## 6. Enforcement checklist (applies to every endpoint)
+
 1. Route declares its required permission(s). A lint/test fails if a tenant route has none.
 2. Service applies scope: tenant (automatic), assigned (teacher), own.
 3. Financial fields (balances, fee status, payments) are stripped by the DTO mapper for users without `balances.read`, including inside student profile and export responses.

@@ -1,6 +1,6 @@
 # 08 — Risks, Technical Decisions & Open Questions
 
-Every item below has a **proposed default**, so you can approve Phase 1 by accepting the defaults and changing only the ones you disagree with. Items marked ★ are **critical**: they change the database schema or financial behaviour and should be confirmed before Phase 2 starts.
+Every open item below has a **proposed default**, so you can approve Phase 1 by accepting the defaults and changing only the ones you disagree with. Confirmed decisions are listed in §0 (C-01 to C-22); the original question and decision IDs are kept and marked CONFIRMED where they were answered. All items that were marked ★ (critical: they change the database schema or financial behaviour) are now confirmed; **no critical question remains open**. The remaining open items can be accepted with their proposed defaults or decided during the phase that first needs them.
 
 ## 0. Confirmed by the project owner
 
@@ -24,13 +24,16 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | C-16 | **Currency.** **USD is the only currency** for the initial release. No multi-currency payments or exchange rates. Resolves Q-F1. | Requirements A2, FR-SCH-01. ERD: `school.currency` fixed to `USD` in v1 (kept as a column for future releases). Architecture money conventions. |
 | C-17 | **What FREE students pay.** FREE students are exempt from **tuition fees only**. Other configured charges, such as books, uniforms and transport, may still apply to them. Resolves Q-F2. | Requirements G2, FR-FRE-01/02, FR-BAL-02, FR-TRN-04. ERD: `fee_category.is_tuition` replaces `applies_to_free_students`; tuition charges for a FREE enrolment are rejected (`FEE_STUDENT_IS_FREE`); non-tuition charges are generated normally. Phase 7/8 acceptance criteria. |
 | C-18 | **Becoming FREE during the academic year.** When a student's status changes to FREE mid-year, the **School Admin** decides whether the student's **existing unpaid charges remain payable (KEEP) or are waived (WAIVE)**. The decision, reason, responsible user and date are recorded in the audit log. **Future tuition charges stop**; other future charges continue to apply (C-17). Resolves Q-F4. | Requirements FR-FRE-03. ERD: `billing_status_history.existing_charges_action` (KEEP/WAIVE), `reason`, `decided_by_id`, `decided_at`; WAIVE creates `charge_adjustment` WAIVER rows. Permissions: sensitive operations table (decision by School Admin only). Audit list. Phase 7 tests. |
-| C-19 | **Fee frequencies.** Supported frequencies are **MONTHLY, TERMLY and ONE_TIME**. **ANNUAL is not supported.** Resolves Q-F9. | Requirements FR-FEE-02/03. ERD: `fee_structure_item.frequency` = `ONE_TIME|MONTHLY|TERMLY`; `charge_run.period_key` has no `YEAR` period. Phase 7 tests. |
+| C-19 | **Fee frequencies.** Supported frequencies are **MONTHLY, TERMLY and ONE_TIME**. **ANNUAL is not supported.** Resolves Q-F9. | Requirements FR-FEE-02/03. ERD: `fee_structure_item.frequency` = `ONE_TIME`, `MONTHLY` or `TERMLY`; `charge_run.period_key` has no `YEAR` period. Phase 7 tests. |
+| C-20 | **Report card design (Q-E6 approved, all nine choices).** (1) One-page A4 portrait layout as proposed, including the late-joiner placement notice. (2) No student photo in the initial release. (3) The Final Term card includes the Mid Term column, labelled **"Reference Only – Not Combined"**. (4) Both Section Rank and Grade Rank. (5) Parent/guardian signature line. (6) QR verification deferred to a future release; the document number is printed now. (7) Bilingual, **Somali first, English second**. (8) Somali wording accepted provisionally, subject to review by a Somali language specialist. (9) Parent/guardian name and phone are **not** printed on the card. Mandatory content stays: separate Mid Term and Final Term results, four-part name, overall percentage, grade, PASS/FAIL and the Final Term promotion/repetition/graduation status. Resolves Q-E6. | Report Card Layout (09, now CONFIRMED). Requirements FR-RPC-01/02/03, FR-PDF-07. Architecture PDF section. Phase 6 acceptance criteria. Report card module (05). |
+| C-21 | **Multi-school database model (D-01 approved).** All schools share one database and schema. Every school-owned record carries `school_id` and is strictly isolated by it. School Admins (and every other school user) access only their own school's data; no school can access another school's records. Isolation is enforced in several server-side layers (schema, composite foreign keys, tenant-scoped data access, authorization, automated tests), never only in the frontend. The Platform Super Admin manages the platform according to the approved permissions model (04). | Architecture §6 (CONFIRMED), ERD conventions, Security §2, Roles & Permissions §1/§6, Requirements NFR-S-01, Modules, Phase 2 and every phase's definition of done (isolation tests). |
+| C-22 | **Fee status of FREE students (Q-F12 approved).** The FREE status is **always displayed** for students exempt from tuition. Their other applicable charges (books, uniforms, transport, …) keep their **own** financial status: **PAID, PARTIAL, UNPAID or CREDIT**, shown alongside the FREE status. FREE status never implies that non-tuition charges are waived; only an explicit, audited waiver does that. A FREE student with no charges in the period shows FREE only. Resolves Q-F12. | Requirements FR-FRE-02/04/05, FR-BAL-02/03/04, FR-STU-06. ERD §8.1 invariant 3 (billing status and fee status are separate values). Modules (free-student and balances). Phase 7 acceptance criteria. |
 
 ## 1. Technical decisions for approval
 
 | ID | Decision | Proposed | Alternatives | Why |
 |----|----------|----------|--------------|-----|
-| D-01 ★ | Tenancy model | Shared DB/schema + `school_id`, five isolation layers | DB per school | Lowest operating cost; one migration path; isolation enforced in layers and by tests. Can move a large school to a dedicated DB later. |
+| D-01 | Tenancy model | **CONFIRMED (C-21):** shared DB/schema + `school_id`, five isolation layers | DB per school (rejected) | Lowest operating cost; one migration path; isolation enforced in layers and by tests. Can move a large school to a dedicated DB later. |
 | D-02 | Repository layout | pnpm-workspaces monorepo (`apps/api`, `apps/web`, `packages/shared`) | Separate repositories | Shared types and validation without publishing packages; one CI |
 | D-03 | Primary keys | UUIDv7 strings | Auto-increment integers | Do not leak counts; safe to generate in the application; time-ordered so they index well |
 | D-04 | Background jobs | Redis + BullMQ | MySQL-backed job table (no Redis) | Mature retries, scheduling and progress. Redis also serves rate limiting. Adds one managed service. |
@@ -43,6 +46,7 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 ## 2. Business rules needing confirmation
 
 ### Platform & roles
+
 | ID | Question | Proposed default |
 |----|----------|------------------|
 | Q-P1 | May the Platform Super Admin view school data? | Only through a time-limited, reason-logged, read-only **support session**, which is visible to the school |
@@ -53,6 +57,7 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | Q-S2 | Login identifier for staff (many may not have email) | **Confirmed (C-15):** email address **or** phone number, both globally unique |
 
 ### Students & academics
+
 | ID | Question | Proposed default |
 |----|----------|------------------|
 | Q-ST1 | Name structure | **Resolved (C-12):** four mandatory parts: First Name, Father's Name, Grandfather's Name, Fourth Name |
@@ -68,15 +73,17 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | Q-E3 | Ranking rules | **Resolved (C-11):** rank by exact overall term percentage; ties share a rank (1, 2, 2, 4); ABSENT counts as 0/100 (C-07); EXEMPT excluded; incomplete results and late joiners not ranked |
 | Q-E4 | Grading scale | **Resolved (C-03):** the official scale in Requirements §1.8 |
 | Q-E5 | Promotion rule | **Resolved (C-06):** automatic. PASS → promoted; FAIL → repeats the same grade. No approval or override. |
-| Q-E6 ★ | Report card layout | **OPEN, awaiting the project owner's review of all nine design choices (Q-E6.1 to Q-E6.9).** The nine questions, each with a recommended option and the reason, are listed together in [09 — Report Card Layout §6](09-report-card-layout.md#6-design-questions-for-the-project-owner-q-e6). Q-E6 stays open until the project owner approves all nine. Whatever the choices, the card always keeps the mandatory content in 09 §1.1 (separate Mid Term and Final Term results, four-part name, overall percentage, grade, PASS/FAIL, and the Final Term promotion/repetition/graduation status). |
+| Q-E6 | Report card layout | **CONFIRMED (C-20):** all nine design choices Q-E6.1 to Q-E6.9 approved by the project owner as recommended. See [09 — Report Card Layout](09-report-card-layout.md) (status CONFIRMED). |
 | Q-E8 | Decimal places for marks | **Resolved (C-08, C-04):** up to two decimal places, 0.00–100.00; more decimals rejected; exact values, no rounding |
 | Q-E9 | Effect of failing an individual subject | **Resolved (C-05):** no effect on PASS/FAIL if the overall percentage is ≥ 50%; the subject is shown with grade F |
 | Q-E10 | Students in the highest grade who PASS the Final Term | **Resolved (C-09):** GRADUATED; never promoted to a non-existent grade |
 | Q-E11 | Students not enrolled when the Final Term examination took place | **Resolved (C-10):** PENDING PLACEMENT; the School Admin decides placement with a reason (audited); enrolled-but-absent students get ABSENT = 0/100 |
 | Q-E12 | Definitions of the absence-handling options | **Resolved (C-07, revised):** a single fixed rule. ABSENT = 0/100, included in the overall percentage. No alternative options. |
 | Q-E13 | Scope of an absence-policy selection | **No longer applicable (C-07, revised):** there is nothing to select |
+| Q-E14 | Final Term card of a student with no published Mid Term result (joined after the Mid Term examination but before the Final Term examination) | The Mid Term reference column shows "—" per subject and "No Mid Term result"; the Final Term result and outcome are unaffected (09 §5) |
 
 ### Finance
+
 | ID | Question | Proposed default |
 |----|----------|------------------|
 | Q-F1 | Currency (or currencies) | **Confirmed (C-16):** USD is the only currency for the initial release; no multi-currency payments |
@@ -90,9 +97,10 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | Q-F9 | Fee frequencies | **Confirmed (C-19):** MONTHLY, TERMLY and ONE_TIME. ANNUAL is not supported. The school configures which frequency each fee item uses. |
 | Q-F10 | Late payment penalties | None in v1 |
 | Q-F11 | Receipt format | A4 by default, optional A5/half-page; bilingual; gapless numbering per school per year |
-| Q-F12 | Fee status shown for a FREE student who has non-tuition charges (follows from C-17) | The **FREE** badge is always shown. The fee status is **FREE** when the student has no charges in the period; otherwise PAID / PARTIAL / UNPAID / CREDIT is derived from their non-tuition charges, shown next to the FREE badge (FR-BAL-02) |
+| Q-F12 | Fee status shown for a FREE student who has non-tuition charges | **CONFIRMED (C-22):** FREE is always displayed; other charges keep their own PAID / PARTIAL / UNPAID / CREDIT status; FREE never implies that other charges are waived |
 
 ### General
+
 | ID | Question | Proposed default |
 |----|----------|------------------|
 | Q-G1 | Library management staff | Custom role "Librarian" (needs Q-R1), or the School Admin |
@@ -108,13 +116,14 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | Q-H2 | Domain name | Needed before staging (e.g. `app.<your-domain>`) |
 
 ## 3. Gaps identified in the brief
+
 1. **Payroll** is not listed but salaries are a major expense (Q-G4).
 2. **Discounts / partial scholarships** sit between "free" and "fee-paying" and are common in practice (Q-F3).
 3. **Opening balances** are needed to migrate existing debts on go-live (included in imports: FR-FEE-07).
 4. **Year-end rollover / promotion** is not listed explicitly but is required (FR-SCH-07).
 5. **Leave management** for staff relates to teacher attendance (FR-TAT-03).
 6. **Data migration plan** from current records (paper/Excel), via the import engine (Phase 9). If go-live is earlier, basic student/staff import moves to Phase 4 (decision with Q-G7).
-7. **Document verification** (QR on receipts and report cards) to fight forged documents (FR-PDF-07).
+7. **Document verification** (QR on receipts and report cards) to fight forged documents (FR-PDF-07). Deferred to a future release; report cards print a unique document number in v1 (C-20).
 8. **Super Admin access policy** to school data (Q-P1).
 9. **Training and support model** for school staff (Phase 10 guides; who provides first-line support?).
 
@@ -141,4 +150,5 @@ Every item below has a **proposed default**, so you can approve Phase 1 by accep
 | R-17 | Absent students wrongly left out of totals, or ABSENT changed after publication without trace | Low | High | Fixed rule (ABSENT ⇒ score 0) enforced by database check constraints and service; no configuration to change it; changes after publication only via audited unlock → re-publish with versioned results (C-07) |
 
 ## 5. Architecture decision records
+
 From Phase 2 onward, each approved decision (D-01 to D-09 and any later ones) is recorded as an ADR in `docs/adr/NNNN-title.md`: context, decision, consequences, status. That gives future maintainers a traceable history.

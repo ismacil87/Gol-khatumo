@@ -5,6 +5,7 @@ A secure, cloud-based, multi-school management platform for Gol Khatumo School a
 **Planned stack:** Node.js + Express + TypeScript · React + TypeScript + Tailwind CSS · MySQL 8 + Prisma
 
 ## Status
+
 **Phase 1: Architecture & Planning.** Awaiting approval. See [`docs/phase-1/`](docs/phase-1/README.md).
 
 | Phase | Scope | Status |

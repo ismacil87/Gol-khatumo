@@ -17,7 +17,7 @@
 | 11 | **Examination** | One examination per term (Mid Term, Final Term) with one paper per subject out of 100, schedule, lifecycle, official grading scale (read-only in v1) | Exam, ExamPaper, GradingScale, GradeBand | 2, 6, 7 | 6 |
 | 12 | **Marks & Results** | Mark entry and automatic computation of percentages and letter grades; Mid Term and Final Term results, each independent and out of 100%; automatic PASS/FAIL for both terms from the overall percentage across all subjects (Mid Term: progress only), and the automatic end-of-year outcome from Final Term (promoted / repeat grade) | Mark, ResultSnapshot | 11, 3 | 6 |
 | 13 | **Student Ranking** | Section and grade ranks per exam and per term (Mid Term, Final Term), top-N lists | (part of ResultSnapshot) | 12 | 6 |
-| 14 | **Report Cards** | Official Mid Term and Final Term report card PDFs with remarks; both term results shown separately | ReportCardRemark | 12, 13, 9 (attendance summary), PDF engine | 6 (+ PDF polish in 9) |
+| 14 | **Report Cards** | Official Mid Term and Final Term report card PDFs with remarks, in the confirmed one-page bilingual layout (C-20); both term results shown separately; document numbers | ReportCardRemark, ReportCardIssue | 12, 13, 9 (attendance summary), PDF engine | 6 (+ PDF polish in 9) |
 | 15 | **Fees & Fee Structures** | Fee categories, structures per grade/year, charge generation, discounts, waivers | FeeCategory, FeeStructure, FeeStructureItem, ChargeRun, FeeCharge, StudentDiscount, ChargeAdjustment | 2, 3, 6, 17 | 7 |
 | 16 | **Payments & Receipts** | Payments, allocation, receipts, voids, refunds, daily cash | Payment, PaymentAllocation, NumberSequence | 15, 19 (posting) | 7 |
 | 17 | **Free Student Management** | FEE_PAYING/FREE billing status with approval and history | BillingProfile, BillingStatusHistory | 3 | 7 |
@@ -74,13 +74,14 @@ flowchart TD
 
 1. **Enrolment is the hub.** Attendance, marks, results, billing profile, charges and transport assignments all reference `enrollment` (student × year × section), not the student directly. This keeps every year's history correct after promotions and transfers.
 2. **Teaching assignment drives teacher scope.** The Teacher role's access to attendance, marks, results and report cards is computed from `teaching_assignment` and `section.class_teacher_id` for the current academic year.
-3. **Free status gates the fee engine.** The fee module asks the free-student module "is this enrolment billable for category X?" before creating any charge. Balances and reports read the same billing profile to label students FREE.
+3. **Free status gates the fee engine.** The fee module asks the free-student module "is this enrolment billable for category X?" before creating any charge. Balances and reports read the same billing profile to label students FREE; the fee status of a FREE student's non-tuition charges is derived from the ledger like any other charge, and FREE never waives them (C-22).
 4. **Payments post to finance.** Recording a payment creates an income transaction in the same database transaction. The income/expense module never creates student-fee income by hand.
 5. **Library and transport bill through fees.** Lost books and transport create `fee_charge` rows (sources `LIBRARY`, `TRANSPORT`), so there is one ledger and one balance per student.
 6. **Exams publish snapshots.** Ranking and report cards read result snapshots, never live marks.
 7. **Domain events drive notifications.** Modules emit events (`attendance.missing`, `exam.published`, `payment.voided`, `inventory.low_stock`, `library.overdue`, `import.completed`) and the notification module subscribes. Modules do not call each other for notifications.
 8. **The term is the time axis of the year.** Each academic year has two terms, Mid Term and Final Term. Exams belong to a term; termly fees are charged per term; attendance, results, rankings and report cards are summarised per term; Mid Term and Final Term results are independent (each out of 100%) and are never combined in v1. Publishing Final Term results automatically decides PASS/FAIL and promotion or repetition (from the overall Final Term percentage across all subjects) and enables rollover. It does not produce an annual result.
 9. **Audit is cross-cutting.** Services call `audit.record(...)` inside the same transaction for every operation listed in 06 — Security §8.
+10. **Every module is school-scoped (C-21).** All modules share one database; each one reads and writes only through the tenant-scoped data access layer, so no module can return or change another school's records (02 — Architecture §6.2).
 
 ## 4. Year lifecycle (how modules interact over a school year)
 
