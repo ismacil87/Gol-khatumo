@@ -6,7 +6,7 @@ A secure, cloud-based, multi-school management platform for Gol Khatumo School a
 
 ## Status
 
-**Phase 1: Architecture & Planning.** Decisions C-01 to C-47 confirmed; Phase 2 awaits separate authorisation. See [`docs/phase-1/`](docs/phase-1/README.md).
+**Phase 1: Architecture & Planning.** Decisions C-01 to C-49 confirmed; Phase 2 awaits separate authorisation. See [`docs/phase-1/`](docs/phase-1/README.md).
 
 | Phase | Scope | Status |
 |-------|-------|--------|

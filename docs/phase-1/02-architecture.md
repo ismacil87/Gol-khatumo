@@ -157,7 +157,7 @@ The brief's "separate frontend, backend, database and shared types" maps to `app
 |-------|-----------|
 | Base path | `/api/v1` (tenant routes) and `/api/v1/platform` (Super Admin routes) |
 | Resources | Plural nouns, kebab-case: `/students`, `/fee-structures`, `/exams/{id}/papers` |
-| Methods | `GET` list/read, `POST` create/action, `PATCH` partial update, `DELETE` only where deletion is allowed. State transitions are explicit actions: `POST /exams/{id}/publish`, `POST /payments/{id}/void`. |
+| Methods | `GET` list/read, `POST` create/action, `PATCH` partial update, `DELETE` only where deletion is allowed. State transitions are explicit actions: `POST /exams/{id}/publish`, `POST /payments/{id}/void-request`. There is no `DELETE` for payments (C-49). |
 | IDs | Opaque string IDs (UUIDv7). Never sequential IDs that leak counts. |
 | Pagination | `?page=1&pageSize=25` (max 100) → `{ data: [...], meta: { page, pageSize, total } }`. Cursor pagination for audit logs. |
 | Filtering / sorting | `?status=ACTIVE&sectionId=…&q=amina&sort=-createdAt` with an allow-list per endpoint |
@@ -194,7 +194,8 @@ GET            /results/sections/{id}?examId=…   /rankings?…
 POST           /report-cards/generate  (→ job)
 GET|POST       /fee-categories  /fee-structures   POST /fee-charges/generate (preview|commit)
 GET|POST       /students/{id}/billing-profile   (FEE_PAYING | FREE)
-GET|POST       /payments   GET /payments/{id}/receipt.pdf   POST /payments/{id}/void
+GET|POST       /payments   GET /payments/{id}/receipt.pdf
+POST           /payments/{id}/void-request   POST /payments/{id}/void-request/approve | /reject   (second person, C-49)
 GET            /balances?sectionId=…&status=PARTIAL
 GET|POST       /income  /expenses  /finance-accounts
 GET|POST       /library/books  /library/copies  /library/loans
@@ -293,7 +294,7 @@ Design points:
 
 - **Template registry:** each import type (students, guardians, staff, fee structures, opening balances, exam marks) is declared once: columns, localized header names (Somali/English, both accepted on upload), Zod row schema, reference resolvers (e.g. section name → section ID) and a duplicate key. Templates, validation, preview and error reports are all generated from that single definition, which avoids duplicated code.
 - **Student template:** the columns are specified in FR-XLS-10: four mandatory name parts (C-12) and mandatory parent/guardian full name and phone (C-13), validated like the registration form.
-- **Parsing:** SheetJS reads `.xlsx`, `.xls` and `.csv`. Header row detection matches Somali or English headers case-insensitively. Dates are normalized from Excel serial numbers and text formats. Phone numbers are normalized to E.164 (e.g. `+252…`).
+- **Parsing:** SheetJS reads `.xlsx`, `.xls` and `.csv`. Header row detection matches Somali or English headers case-insensitively. Dates are normalized from Excel serial numbers and text formats. Phone numbers in local or international format are accepted and normalized to E.164; local numbers use the school's default country code, +252 unless the school changes it (C-48).
 - **Safety:** max file size 5 MB, max 5,000 rows, magic-byte check, no macros (`.xlsm` rejected), formula cells read as values only. CSV export escapes cells starting with `= + - @ \t \r` to prevent **formula injection**.
 - **Validation stages:** (1) structural (headers present), (2) row schema (types, required, enums), (3) referential (section exists in the current year), (4) business rules (capacity, FREE students cannot have tuition opening balances, C-17), (5) duplicates within the file and against the database.
 - **Commit:** all-or-nothing by default. For very large files, batches of 500 inside a job, with a compensating rollback of that import's records if a batch fails.

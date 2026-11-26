@@ -26,10 +26,10 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
 | Role | Scope | Purpose |
 |------|-------|---------|
 | **Platform Super Admin** | Platform | Operates the platform: onboards and suspends schools, creates first School Admins, manages platform settings and system health, views platform audit logs. **No routine access to school data**; read-only, time-limited, logged support sessions only, visible to the school (C-25). |
-| **School Admin** | Whole school | The school's owner and administrator: settings, users and roles, all modules, approvals for sensitive operations (free status, voids, waivers, exam unlocks). |
-| **Principal** | Whole school, academic focus | Academic leadership: academic years, classes, subjects, timetables, exams (approve, lock, publish), results, report cards, attendance oversight, staff attendance. Read-only finance summaries. |
+| **School Admin** | Whole school | The school's owner and administrator: settings, users and roles, all modules, approvals for sensitive operations (free status, waivers, exam unlocks, and payment voids requested by someone else, C-49). Records and same-day edits attendance; editing attendance after midnight is reserved for the Principal (C-31). |
+| **Principal** | Whole school, academic focus | Academic leadership: academic years, classes, subjects, timetables, exams (approve, lock, publish), results, report cards, attendance oversight (records attendance, and is the **only** role that can edit student attendance after the same-day midnight lock, with reason and audit, C-31), staff attendance. Read-only finance summaries. |
 | **Accountant** | Whole school, finance focus | Fee structures, charges, payments, receipts, balances, income/expenses, financial reports. Can *request* free status and waivers; cannot approve their own requests. Read-only student and guardian contact data. |
-| **Teacher** | Assigned sections/subjects | Takes attendance for assigned sections, enters marks for assigned subject × section during marks entry, sees own timetable and own students' academic data. **No access to fees or finance.** |
+| **Teacher** | Assigned sections/subjects | Records attendance for own assigned sections and can edit it **until midnight the same day** (C-31), enters marks for assigned subject × section during marks entry, sees own timetable and own students' academic data. **No access to fees or finance.** |
 
 ## 3. Permission catalogue (v1)
 
@@ -44,7 +44,7 @@ User ──< UserRole >── Role ──< RolePermission >── Permission ("m
 | Students | `students.read`, `students.create`, `students.update`, `students.status.change`, `students.transfer`, `students.medical.read`, `students.documents.manage`, `students.export` |
 | Guardians | `guardians.read` (includes the mandatory guardian name and phone), `guardians.manage`, `guardians.export` (guardian contact list) |
 | Staff | `staff.read`, `staff.manage`, `staff.sensitive.read` (salary, national ID), `staff.export` |
-| Student attendance | `attendance.read`, `attendance.take`, `attendance.edit_locked` |
+| Student attendance | `attendance.read`, `attendance.record` (take the daily register), `attendance.edit_same_day` (edit until midnight the same day; teachers only for their own assigned sections), `attendance.edit_locked` (edit after midnight; **Principal only**, reason required, audited) (C-31) |
 | Staff attendance | `staff_attendance.read`, `staff_attendance.record`, `staff_leave.approve` |
 | Exams | `exams.read`, `exams.manage`, `exams.lock`, `exams.publish`, `exams.unlock` (there is no absence-policy permission: ABSENT is always 0/100, C-07) |
 | Grading scale | `grading.scale.read`; `grading.scale.manage` (reserved for future editing by an authorised administrator, inactive in v1: the official scale is read-only) |
@@ -93,10 +93,11 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Guardian contact list report / export | — | F | F | R | S (own sections) |
 | Staff records | — | F | R | R (basic) | O |
 | Staff sensitive data (salary, ID) | — | F | — | R | — |
-| Student attendance: take (daily per section, C-31) | — | F | F | — | S |
-| Student attendance: edit until midnight the same day | — | F | F | — | S (own sections) |
-| Student attendance: edit after midnight (lock) | — | F | F | — | — |
-| Staff attendance & leave (recorded by School Admin or Principal, C-31) | — | F | F | — | O (R) |
+| Student attendance: record (daily per section, C-31) | — | F | F | — | S (own assigned sections) |
+| Student attendance: edit until midnight the same day (C-31) | — | F | F | — | S (own assigned sections) |
+| Student attendance: edit after midnight (C-31) | — | — | F (reason required, audited) | — | — |
+| Staff attendance: record and edit (C-31) | — | F | F | — | O (R) |
+| Staff leave | — | F | F | — | O (R) |
 | Exams: create, schedule | — | F | F | — | — |
 | Exams: lock / publish / unlock | — | F | F | — | — |
 | Marks entry | — | F | F | — | S |
@@ -113,7 +114,8 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 | Waive charges | — | A | — | Rq | — |
 | Free student status | — | A | Rq | Rq | — |
 | Payments & receipts: record, print | — | F | R | F | — |
-| Payments: void / refund | — | A | — | Rq | — |
+| Payments: void | — | Rq + A (never their own request, C-49) | — | Rq | — |
+| Payments: refund | — | A | — | Rq | — |
 | Outstanding balances | — | F | R | F | — |
 | Income & expenses | — | F + A | R | F (record) | — |
 | Library (or a Librarian custom role, C-40) | — | F | R | — | R (catalogue) |
@@ -135,18 +137,18 @@ Legend: **F** = full (all actions in the module), **R** = read only, **A** = can
 |-----------|-----------|----------|-------|
 | Grant/revoke FREE status | Accountant, Principal | School Admin | Reason category + notes required. FREE exempts tuition only (C-17). When a student becomes FREE mid-year, **only the School Admin** decides whether existing unpaid charges remain payable (KEEP) or are waived (WAIVE); decision, reason, user and date are audit-logged; future tuition charges stop (C-18). |
 | Waive a charge | Accountant | School Admin | Reason required |
-| Void a payment | Accountant | School Admin (Q-M3) | Receipt stays, marked VOID; income transaction voided |
+| Void a payment (C-49) | Accountant or School Admin | A **second, different person** with `payments.void.approve` (School Admin by default). **Self-approval is never allowed**, regardless of C-28 or the school setting. | Payments are never deleted or edited. Reason mandatory. Receipt stays, marked VOID; allocations and income transaction reversed; request, approval or rejection audit-logged |
 | Refund credit | Accountant | School Admin | Creates an expense/refund transaction |
 | Apply a discount (fixed or percentage, C-33) | Accountant | School Admin | Reason required; applies only after approval |
 | Recognise an expense (C-35) | Accountant | School Admin | Counted in financial reports only after approval |
 | Unlock a locked/published exam | Principal or School Admin | — (self, with reason) | Snapshots invalidated; notification to School Admin |
 | End-of-year outcome (PASS → promoted, FAIL → repeat grade) | System (automatic on Final Term publish) | **None: no approval step** (C-06) | Recorded and audit-logged as a system action. Changes only via an audited exam unlock and re-publish. |
 | Placement of a PENDING PLACEMENT late joiner (C-10) | School Admin | — (self, mandatory reason) | Decision, reason, responsible user and date stored on the enrolment and in the audit log. Never applies to enrolled-but-absent students (ABSENT = 0/100). |
-| Edit attendance after the same-day midnight lock (C-31) | Principal/School Admin | — | Audited with reason |
+| Edit student attendance after the same-day midnight lock (C-31) | **Principal only** | — | Mandatory reason; audited |
 | Change a user's roles | School Admin | — | Audited; permission version bumped; sessions refreshed |
 | Super Admin support session (C-25) | Super Admin | — | Mandatory reason, time limit, **read-only**; every action logged; visible in the school's audit log |
 
-**Self-approval (confirmed, C-28):** a School Admin may approve their own requests, because small schools may have only one admin; the audit log flags every self-approval. A school setting (`require_second_approver`) can require a second, different approver.
+**Self-approval (confirmed, C-28):** a School Admin may approve their own requests, because small schools may have only one admin; the audit log flags every self-approval. A school setting (`require_second_approver`) can require a second, different approver. **Exception:** payment voids always require a second person (C-49).
 
 ## 6. Enforcement checklist (applies to every endpoint)
 

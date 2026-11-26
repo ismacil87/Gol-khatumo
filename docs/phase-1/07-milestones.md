@@ -20,7 +20,7 @@ A phase is complete only when **all** of the following hold:
 ### Phase 1 — Requirements & architecture *(this phase)*
 
 **Deliverables:** this document set.
-**Acceptance:** the project owner approves the requirements, architecture, ERD, permission matrix and module plan. Decisions confirmed so far: C-01 to C-47 (08 §0).
+**Acceptance:** the project owner approves the requirements, architecture, ERD, permission matrix and module plan. Decisions confirmed so far: C-01 to C-49 (08 §0).
 
 ### Phase 2 — Project setup, database schema & backend foundation
 
@@ -76,6 +76,7 @@ A phase is complete only when **all** of the following hold:
 - Duplicate admission number is rejected. The same four-part name + DOB shows a warning.
 - **Four-part name (C-12):** registration without any one of First Name, Father's Name, Grandfather's Name or Fourth Name is rejected with a field-level error, in the UI, the API and at database level.
 - **Mandatory guardian (C-13):** registration without the guardian full name or phone is rejected, as is an invalid phone. Local formats are normalised to E.164. Removing the primary guardian without a replacement is rejected. Guardian name and phone are visible to School Admin, Principal, Accountant and to Teachers of the student's section; Super Admin is denied. Contact changes appear in the audit log. The guardian contact list exports to PDF and Excel.
+- **Phone numbers (C-48):** `0634…` style local numbers and `+252…` / `00252…` international numbers are accepted and stored as E.164; a local number uses the school's default country code (+252 unless changed in settings); an invalid number is rejected.
 - A teacher sees only students of assigned sections (verified once assignments exist; stubbed by class teacher in this phase). An accountant sees basic student data but cannot edit it.
 - Upload rejects a renamed `.exe` as `.jpg` (magic-byte check). Photos are re-encoded without EXIF.
 - Filtered student list exports to .xlsx with the same rows as the screen.
@@ -93,7 +94,7 @@ A phase is complete only when **all** of the following hold:
 - A teacher can take attendance only for assigned sections, on working days, within the edit window. The Principal can edit later, with a reason (audited).
 - Monthly attendance register for a section matches the raw records. Holidays are excluded.
 - Rollover is available only after Final Term results are published (stubbed until Phase 6). The preview shows each student's automatic outcome (PROMOTED → next grade level, REPEAT GRADE → same grade level, GRADUATED → no next-year enrolment), plus a separate list of PENDING PLACEMENT late joiners. Automatic outcomes cannot be edited in the preview or through the API. Late joiners are placed only by the School Admin, with a reason. Commit creates next-year enrolments accordingly; re-running it does nothing.
-- **Attendance (C-31):** attendance is taken once per section per day. A teacher can edit their own section's attendance until 23:59 school time on the same day; at 00:00 the edit is rejected and only the Principal or School Admin can change it, with an audit entry. Staff attendance can be recorded only by the School Admin or Principal; there is no self check-in endpoint.
+- **Attendance (C-31):** attendance is taken once per section per day. The School Admin and Principal can record attendance for any section, and a teacher for their own assigned sections only. Until 23:59 school time on the same day, a teacher can edit their own assigned sections (and is rejected for any other section); the School Admin and Principal can also edit. From 00:00, edits by teachers and by the School Admin are rejected; **only the Principal** can edit, with a mandatory reason, and the audit log records old and new values. Staff attendance can be recorded only by the School Admin or Principal; there is no self check-in endpoint.
 
 ### Phase 6 — Examinations & results
 
@@ -153,7 +154,7 @@ A phase is complete only when **all** of the following hold:
 - FREE students always show the FREE status; a FREE student with unpaid books, uniform or transport charges shows FREE together with UNPAID (or PARTIAL, PAID, CREDIT) for those charges, and those charges appear in outstanding and class financial reports. Setting FREE never reduces a non-tuition charge; only an approved waiver does (C-22).
 - For a seeded scenario (paid, partial, unpaid, free without charges, free with non-tuition charges, credit students), balances and statuses match hand-calculated expected values exactly. Class report totals reconcile: expected = collected + outstanding + waived/discounted.
 - 100 concurrent payment requests produce 100 unique, gapless receipt numbers. An idempotent retry creates no duplicate payment.
-- A voided payment keeps its receipt number, shows VOID, reverses its allocations and income transaction, and is audit-logged with the approver.
+- **Payment voids (C-49):** there is no endpoint or database grant that deletes or edits a payment. A void request leaves the payment VALID until a **different** user approves it; the requester's own approval is rejected by the service and by the database check constraint, even for a School Admin and even with `require_second_approver` off. After approval the payment keeps its receipt number, shows VOID, reverses its allocations and income transaction, and the audit log shows the request, the approval (or rejection), both users, the reason and timestamps.
 - Teachers cannot access any finance endpoint or financial fields (tests).
 - **Discounts (C-33):** fixed and percentage discounts apply only after School Admin approval; a REQUESTED discount does not change any balance.
 - **Expenses (C-35):** a RECORDED expense does not appear in income/expense or profit/loss reports until a School Admin approves it.

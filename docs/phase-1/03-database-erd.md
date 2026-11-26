@@ -68,8 +68,9 @@ erDiagram
     json working_days
     json term_template "initial: Mid Term, Final Term"
     json numbering_formats
+    string default_phone_country_code "+252 by default, configurable (C-48)"
     json report_card_options
-    string attendance_edit_rule "SAME_DAY_MIDNIGHT (fixed in v1, C-31)"
+    string attendance_edit_rule "SAME_DAY_MIDNIGHT: teachers (own sections), Principal and School Admin edit until midnight; afterwards Principal only (C-31)"
     json finance_options "incl. require_second_approver (default false, C-28)"
   }
   USER {
@@ -306,7 +307,7 @@ erDiagram
   GUARDIAN {
     string id PK
     string full_name "required (C-13)"
-    string phone_primary "required, E.164 (C-13)"
+    string phone_primary "required, E.164; local or international input (C-13, C-48)"
     string phone_secondary
     string email
     string occupation
@@ -722,9 +723,12 @@ erDiagram
     string payer_name
     string finance_account_id FK
     string received_by_id FK
-    string status "VALID|VOID"
-    string void_reason
-    string voided_by_id FK
+    string status "VALID|VOID (never deleted, C-49)"
+    string void_reason "mandatory when voided"
+    string void_requested_by_id FK
+    datetime void_requested_at
+    string void_approved_by_id FK "must differ from void_requested_by_id"
+    datetime voided_at
     string idempotency_key UK
   }
   PAYMENT_ALLOCATION {
@@ -771,11 +775,12 @@ erDiagram
 3a. **Becoming FREE mid-year (C-18):** the change to FREE records the School Admin's `existing_charges_action`: `KEEP` leaves the existing unpaid charges payable; `WAIVE` creates a `charge_adjustment` (kind `WAIVER`) for the unpaid amount of each of them, referencing the billing-status change. The decision, reason, `decided_by_id` and `decided_at` are stored and audit-logged. From `effective_from` onward no tuition charge is generated; other charges continue.
 4. **Idempotent generation:** `UNIQUE (school_id, enrollment_id, fee_structure_item_id, period_key)` on generated charges, so a run repeated for the same period creates nothing new. TERMLY items produce exactly two charges per billable enrolment per year: one for Mid Term and one for Final Term. ONE_TIME items produce exactly one charge per billable enrolment per year (`period_key` `{year}:ONE_TIME`). There is no ANNUAL frequency (C-19). MONTHLY charges carry the `term_id` of the term their month falls in, so balances can be reported per term.
 5. **Allocation integrity:** `Σ allocations(payment) = payment.amount`; `Σ allocations(charge) ≤ charge net amount`. Both are checked in the same transaction with row locks (`SELECT … FOR UPDATE`).
-6. **Immutability:** payments, allocations and charges are never updated in amount or deleted. Corrections use void + re-issue, or adjustments, all audit-logged.
+6. **Immutability:** payments, allocations and charges are never updated in amount or deleted (no DELETE grant or endpoint). Corrections use void + re-issue, or adjustments, all audit-logged.
+6a. **Payment void (C-49):** two steps. A void request records `void_requested_by_id`, `void_requested_at` and `void_reason`; the payment stays VALID. Approval by a **different** user sets `void_approved_by_id`, `voided_at` and `status = VOID`, reverses the allocations and voids the income transaction, in one transaction. `CHECK (void_approved_by_id IS NULL OR void_approved_by_id <> void_requested_by_id)` makes self-approval impossible at database level. Rejection keeps the payment VALID. Every step is audit-logged.
 7. **Receipt numbers** come from `number_sequence` with a row lock, inside the payment transaction: gapless and unique per school per year. A voided payment keeps its number.
 8. **Income posting:** each valid payment creates exactly one `finance_transaction` (INCOME, category STUDENT_FEES). Voiding the payment voids that transaction.
 9. **Expense recognition (C-35):** an EXPENSE `finance_transaction` is created as `RECORDED` and is counted in financial reports only once `status = APPROVED` with `approved_by_id` set by a School Admin.
-10. **Approvals and self-approval (C-28):** discounts, waivers, voids, refunds, expenses and billing-status changes store requester and approver. A School Admin may approve their own request; the audit entry flags it as self-approved. When `finance_options.require_second_approver = true`, the service rejects an approval by the requester.
+10. **Approvals and self-approval (C-28):** discounts, waivers, refunds, expenses and billing-status changes store requester and approver. A School Admin may approve their own request; the audit entry flags it as self-approved. When `finance_options.require_second_approver = true`, the service rejects an approval by the requester. **Payment voids are the exception: they always need a second person (C-49, invariant 6a).**
 11. **Arrears (C-37):** balances are never copied between academic years. A previous year's unpaid charges stay on that year's enrolment and are reported as arrears.
 12. **No late-payment penalties (C-38)** and no automatic charge of any kind is created for late payment.
 13. **Retries (C-41):** `idempotency_key` (unique per school) on payments, charge runs and import commits. A repeated request with the same key returns the original result and writes nothing.
